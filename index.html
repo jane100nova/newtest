@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wayfarer — Plan Your Next Adventure</title>
+  <meta name="description" content="Wayfarer is a simple travel planning tool to help you plan your next adventure." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧭</text></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#" class="logo">🧭 Wayfarer</a>
+      <nav class="nav">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#" class="btn btn-small">Get Started</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-inner">
+        <p class="eyebrow">Your journey starts here</p>
+        <h1>Plan your next adventure.</h1>
+        <p class="hero-subtitle">
+          Wayfarer helps you dream up, organize, and share every trip —
+          from a weekend getaway to a round-the-world itinerary.
+        </p>
+        <form class="hero-form" id="waitlist-form">
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="you@example.com"
+            required
+            aria-label="Email address"
+          />
+          <button type="submit" class="btn">Notify Me</button>
+        </form>
+        <p class="hero-note" id="form-message" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="container">
+        <h2>Everything you need to wander well</h2>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-icon">🗺️</div>
+            <h3>Build an itinerary</h3>
+            <p>Map out each day of your trip, from flights to hidden-gem cafes.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">💰</div>
+            <h3>Track your budget</h3>
+            <p>Keep spending in check with a running total for every trip.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">🤝</div>
+            <h3>Plan together</h3>
+            <p>Invite friends and family to collaborate on the same trip plan.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="how-it-works" id="how-it-works">
+      <div class="container">
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>
+            <span class="step-number">1</span>
+            <div>
+              <h3>Pick a destination</h3>
+              <p>Tell us where you're dreaming of going next.</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-number">2</span>
+            <div>
+              <h3>Shape your itinerary</h3>
+              <p>Add stops, activities, and travel dates in a few clicks.</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-number">3</span>
+            <div>
+              <h3>Set off</h3>
+              <p>Take your plan with you and enjoy the adventure.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>🧭 Wayfarer — built for wanderers.</p>
+      <p>&copy; <span id="year"></span> Wayfarer. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
