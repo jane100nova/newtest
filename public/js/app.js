@@ -19,6 +19,55 @@ function escapeHtml(str) {
   }[c]));
 }
 
+function inlineMd(raw) {
+  const escaped = escapeHtml(raw);
+  return escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
+// Small, safe subset of markdown for section bodies:
+// "## " headers, "-> " / "- " bullets, blank-line paragraphs, **bold** highlights.
+function mdToHtml(raw) {
+  const lines = String(raw ?? "").split("\n");
+  let html = "";
+  let listBuffer = [];
+  let paraBuffer = [];
+
+  const flushList = () => {
+    if (listBuffer.length) {
+      html += "<ul>" + listBuffer.map((li) => `<li>${inlineMd(li)}</li>`).join("") + "</ul>";
+      listBuffer = [];
+    }
+  };
+  const flushPara = () => {
+    if (paraBuffer.length) {
+      html += `<p>${inlineMd(paraBuffer.join(" "))}</p>`;
+      paraBuffer = [];
+    }
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.startsWith("## ")) {
+      flushList(); flushPara();
+      html += `<h4>${inlineMd(line.slice(3))}</h4>`;
+    } else if (line.startsWith("-> ")) {
+      flushPara();
+      listBuffer.push(line.slice(3));
+    } else if (line.startsWith("- ")) {
+      flushPara();
+      listBuffer.push(line.slice(2));
+    } else if (line === "") {
+      flushList(); flushPara();
+    } else {
+      flushList();
+      paraBuffer.push(line);
+    }
+  }
+  flushList();
+  flushPara();
+  return html;
+}
+
 function toast(msg) {
   const el = document.createElement("div");
   el.className = "toast";
@@ -315,7 +364,7 @@ function renderSections(adventure, admin) {
 function sectionHtml(s, admin) {
   const meta = SECTION_META[s.type] || { emoji: "📍" };
   const bodyHtml = s.body
-    ? `<div class="section-body" data-view>${escapeHtml(s.body)}</div>`
+    ? `<div class="section-body" data-view>${mdToHtml(s.body)}</div>`
     : `<div class="section-body empty" data-view>${admin ? "Nothing here yet — tap Edit to add your notes." : "Nothing here yet."}</div>`;
 
   const photos = s.photos.map((p) => `<img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />`).join("");
@@ -340,9 +389,14 @@ function wireSection(slug, section, admin) {
   if (admin) {
     card.querySelector("[data-edit]")?.addEventListener("click", () => {
       const viewEl = card.querySelector("[data-view]");
+      const wrap = document.createElement("div");
       const textarea = document.createElement("textarea");
       textarea.value = section.body;
-      viewEl.replaceWith(textarea);
+      const hint = document.createElement("p");
+      hint.className = "edit-hint";
+      hint.textContent = "Tip: \"## \" for a header, \"-> \" for a bullet, blank line for a new paragraph, **bold** to highlight.";
+      wrap.append(textarea, hint);
+      viewEl.replaceWith(wrap);
       const editBtn = card.querySelector("[data-edit]");
       editBtn.textContent = "💾 Save";
       editBtn.onclick = async () => {

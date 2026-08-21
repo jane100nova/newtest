@@ -356,13 +356,57 @@ img {
 
 .section-body {
   color: var(--color-text);
-  white-space: pre-wrap;
   margin: 6px 0 12px;
 }
 
 .section-body.empty {
   color: var(--color-muted);
   font-style: italic;
+  white-space: normal;
+}
+
+.section-body p {
+  margin: 0 0 12px;
+}
+
+.section-body p:last-child {
+  margin-bottom: 0;
+}
+
+.section-body h4 {
+  font-size: 1.02rem;
+  color: var(--color-primary-dark);
+  margin: 18px 0 6px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.section-body h4:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.section-body ul {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+
+.section-body li {
+  margin-bottom: 5px;
+}
+
+.section-body strong {
+  color: var(--color-primary-dark);
+  font-weight: 800;
+  background: linear-gradient(180deg, transparent 58%, #ffe0ad 58%);
+  padding: 0 1px;
+}
+
+.edit-hint {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin: 6px 0 0;
 }
 
 .section-body textarea {
