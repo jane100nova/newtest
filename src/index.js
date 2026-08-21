@@ -307,13 +307,16 @@ async function handleApi(request, env, url) {
     if (denied) return denied;
     const body = await request.json().catch(() => ({}));
     const destination = (body.destination || "").trim().slice(0, 120);
-    if (!destination) return json({ error: "destination required" }, { status: 400 });
+    // The name heads the card. Fall back to the destination so an entry that
+    // only names a place still gets a heading rather than an empty one.
+    const title = ((body.title || "").trim() || destination).slice(0, 120);
+    if (!title) return json({ error: "name required" }, { status: 400 });
 
     const minOrder = await env.DB.prepare("SELECT MIN(sort_order) AS m FROM bucketlist").first();
     const result = await env.DB.prepare(
-      "INSERT INTO bucketlist (destination, tempt, sort_order) VALUES (?, ?, ?)"
+      "INSERT INTO bucketlist (title, destination, tempt, sort_order) VALUES (?, ?, ?, ?)"
     )
-      .bind(destination, (body.tempt || "").slice(0, 600), (minOrder?.m ?? 0) - 1)
+      .bind(title, destination, (body.tempt || "").slice(0, 600), (minOrder?.m ?? 0) - 1)
       .run();
 
     const item = await env.DB.prepare("SELECT * FROM bucketlist WHERE id = ?")
@@ -327,14 +330,15 @@ async function handleApi(request, env, url) {
     const denied = requireAdmin(request, env);
     if (denied) return denied;
     const body = await request.json().catch(() => ({}));
-    const fields = ["destination", "tempt", "tempt_lv", "tempt_nl"];
-    const updates = fields.filter((f) => body[f] !== undefined);
+    // Per-field caps: a name/destination is a label, the tempt is a few lines.
+    const LIMITS = { title: 120, destination: 120, tempt: 600, tempt_lv: 600, tempt_nl: 600 };
+    const updates = Object.keys(LIMITS).filter((f) => body[f] !== undefined);
     if (!updates.length) return json({ error: "nothing to update" }, { status: 400 });
 
     await env.DB.prepare(
       `UPDATE bucketlist SET ${updates.map((f) => `${f} = ?`).join(", ")} WHERE id = ?`
     )
-      .bind(...updates.map((f) => String(body[f]).slice(0, 600)), parts[1])
+      .bind(...updates.map((f) => String(body[f]).slice(0, LIMITS[f])), parts[1])
       .run();
 
     return json({ ok: true });

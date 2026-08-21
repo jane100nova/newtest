@@ -245,12 +245,12 @@ img {
   left: 12px;
   background: rgba(255, 255, 255, 0.92);
   color: var(--color-primary-dark);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   padding: 4px 10px;
   border-radius: 999px;
+  backdrop-filter: blur(4px);
 }
 
 .status-badge.completed {
@@ -267,9 +267,17 @@ img {
 }
 
 .adventure-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: var(--color-muted);
   font-size: 0.88rem;
   margin-bottom: 8px;
+}
+
+.adventure-meta .icon {
+  color: var(--color-primary);
+  opacity: 0.75;
 }
 
 .adventure-card-body p {
@@ -1024,4 +1032,83 @@ img {
 .edit-btn.danger:hover {
   background: #fbeeeb;
   color: #8c352c;
+}
+
+/* ---------- Feed groups: upcoming vs past ---------- */
+.feed-group {
+  margin-bottom: 30px;
+}
+
+.feed-group:last-child {
+  margin-bottom: 0;
+}
+
+/* The group's own spacing handles the gap, so the last card drops its margin. */
+.adventure-list .adventure-card-wrap:last-child .adventure-card {
+  margin-bottom: 0;
+}
+
+.feed-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 15px;
+}
+
+.feed-group-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.feed-group-head h2 .icon {
+  color: var(--color-primary);
+}
+
+/* A rule fills whatever space is left to the right of the count. */
+.feed-group-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.feed-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* Past trips read as an archive: the heading recedes, the cards don't. */
+.feed-group.past .feed-group-head h2 {
+  color: var(--color-muted);
+}
+
+.feed-group.past .feed-group-head h2 .icon {
+  color: var(--color-accent);
+}
+
+/* Where a bucket-list place actually is, under its name. */
+.bucket-place {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.bucket-place .icon {
+  opacity: 0.8;
 }

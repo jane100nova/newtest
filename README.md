@@ -2,10 +2,13 @@
 
 A mobile-first adventure journal. Each adventure has three tabs —
 **Preparation**, **Plan**, **Live updates** — plus photos, comments,
-reactions, and a share link for friends. Below the feed sits a
-**bucket list** of places that aren't planned trips yet — a picture, a
-destination, and a few lines on what tempts you. Content is available in
-English, Latvian and Dutch, and the feed order is set by hand
+reactions, and a share link for friends.
+
+The feed is split into **Upcoming adventures** and **Past adventures**,
+by each adventure's status. Below both sits a **bucket list** of places
+that aren't planned trips yet — a name, a destination, a picture and
+three lines on why you want to go. Content is available in English,
+Latvian and Dutch, and the order within each group is set by hand
 (drag-to-reorder in admin mode) rather than newest-first.
 
 ## Stack
@@ -55,6 +58,7 @@ You can do this either in the **dashboard** or with **wrangler CLI**
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0003_i18n.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0004_tabs_and_ordering.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0005_bucketlist.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0006_bucketlist_title.sql
    ```
    They can also be pasted into the D1 **Console** tab in the dashboard.
 

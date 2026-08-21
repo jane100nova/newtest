@@ -31,6 +31,9 @@ const ICONS = {
   externalLink: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
   trash: '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>',
   compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+  calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   grip: '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>',
 };
 
@@ -42,8 +45,9 @@ function icon(name, size = 18) {
 
 const STRINGS = {
   en: {
-    tagline: "How I prepare, the plan, how I experience it, and how I feel afterwards.",
+    tagline: "How I prepare, the plan, and how I live it — trip by trip.",
     upcoming: "Upcoming", completed: "Completed",
+    upcomingAdventures: "Upcoming adventures", pastAdventures: "Past adventures",
     loadingAdventures: "Loading adventures…",
     couldntLoad: "Couldn't load adventures. Pull to refresh?",
     noAdventuresTitle: "No adventures yet",
@@ -61,7 +65,9 @@ const STRINGS = {
     bucketListIntro: "Places I haven't planned yet — but keep coming back to.",
     bucketEmpty: "Nothing on the list yet.",
     addPlace: "Add a place", editPlace: "Edit place",
-    fieldTempt: "What tempts me", temptHint: "Three short lines works best.",
+    fieldName: "Name", placeNamePlaceholder: "e.g. Trek to Everest Base Camp",
+    placeDestPlaceholder: "e.g. Nepal",
+    fieldTempt: "Why I want to go", temptHint: "Three short lines works best.",
     temptPlaceholder: "Why this place keeps pulling at you…",
     deletePlaceConfirm: "Remove this place from the bucket list?",
     deleted: "Removed", delete: "Delete", addPhoto: "Add photo",
@@ -89,8 +95,9 @@ const STRINGS = {
     sectionTitles: { prepare: "Preparation", plan: "Plan", experience: "Live updates" },
   },
   lv: {
-    tagline: "Kā es gatavojos, plāns, kā es to piedzīvoju un kā jūtos pēc tam.",
+    tagline: "Kā es gatavojos, plāns un kā es to piedzīvoju — piedzīvojumu pa piedzīvojumam.",
     upcoming: "Gaidāms", completed: "Pabeigts",
+    upcomingAdventures: "Gaidāmie piedzīvojumi", pastAdventures: "Aizvadītie piedzīvojumi",
     loadingAdventures: "Ielādē piedzīvojumus…",
     couldntLoad: "Neizdevās ielādēt. Pamēģini atsvaidzināt?",
     noAdventuresTitle: "Vēl nav neviena piedzīvojuma",
@@ -108,7 +115,9 @@ const STRINGS = {
     bucketListIntro: "Vietas, ko vēl neesmu ieplānojis — bet pie kurām domās atgriežos.",
     bucketEmpty: "Sarakstā vēl nekā nav.",
     addPlace: "Pievienot vietu", editPlace: "Rediģēt vietu",
-    fieldTempt: "Kas mani vilina", temptHint: "Vislabāk der trīs īsas rindas.",
+    fieldName: "Nosaukums", placeNamePlaceholder: "piem., Pārgājiens uz Everesta bāzes nometni",
+    placeDestPlaceholder: "piem., Nepāla",
+    fieldTempt: "Kāpēc gribu turp doties", temptHint: "Vislabāk der trīs īsas rindas.",
     temptPlaceholder: "Kāpēc šī vieta tevi sauc…",
     deletePlaceConfirm: "Noņemt šo vietu no saraksta?",
     deleted: "Noņemts", delete: "Dzēst", addPhoto: "Pievienot foto",
@@ -136,8 +145,9 @@ const STRINGS = {
     sectionTitles: { prepare: "Sagatavošanās", plan: "Plāns", experience: "Jaunumi" },
   },
   nl: {
-    tagline: "Hoe ik me voorbereid, het plan, hoe ik het beleef, en hoe ik me erna voel.",
+    tagline: "Hoe ik me voorbereid, het plan, en hoe ik het beleef — avontuur na avontuur.",
     upcoming: "Aankomend", completed: "Voltooid",
+    upcomingAdventures: "Aankomende avonturen", pastAdventures: "Afgelopen avonturen",
     loadingAdventures: "Avonturen laden…",
     couldntLoad: "Laden mislukt. Probeer te vernieuwen?",
     noAdventuresTitle: "Nog geen avonturen",
@@ -155,7 +165,9 @@ const STRINGS = {
     bucketListIntro: "Plekken die ik nog niet gepland heb — maar waar ik steeds aan denk.",
     bucketEmpty: "Nog niets op de lijst.",
     addPlace: "Plek toevoegen", editPlace: "Plek bewerken",
-    fieldTempt: "Wat me trekt", temptHint: "Drie korte regels werkt het best.",
+    fieldName: "Naam", placeNamePlaceholder: "bijv. Trektocht naar Everest Base Camp",
+    placeDestPlaceholder: "bijv. Nepal",
+    fieldTempt: "Waarom ik erheen wil", temptHint: "Drie korte regels werkt het best.",
     temptPlaceholder: "Waarom deze plek blijft trekken…",
     deletePlaceConfirm: "Deze plek van de lijst verwijderen?",
     deleted: "Verwijderd", delete: "Verwijderen", addPhoto: "Foto toevoegen",
@@ -407,8 +419,13 @@ async function renderHome() {
     bucketlist = [];
   }
 
+  // The feed is split by status: what's still ahead, then what's already been
+  // lived. A group with nothing in it is left out rather than shown empty.
+  const upcoming = adventures.filter((a) => a.status !== "completed");
+  const past = adventures.filter((a) => a.status === "completed");
+
   const cards = adventures.length
-    ? `<div class="adventure-list" id="adventure-list">${adventures.map((a) => adventureCardHtml(a, admin)).join("")}</div>`
+    ? `<div id="feed">${feedGroupHtml("upcoming", upcoming, admin)}${feedGroupHtml("past", past, admin)}</div>`
     : `<div class="empty-state"><h2>${t("noAdventuresTitle")}</h2><p>${t("noAdventuresBody")}</p></div>`;
 
   $app.innerHTML = `
@@ -422,8 +439,9 @@ async function renderHome() {
   wireBucketList(bucketlist, admin);
 
   if (admin) {
-    const list = document.getElementById("adventure-list");
-    if (list) enableDragReorder(list);
+    // Each group drags on its own, but the order saved is global (see
+    // enableDragReorder) so the two groups can't fight over sort_order.
+    document.querySelectorAll("[data-feed-list]").forEach((list) => enableDragReorder(list));
 
     const fab = document.createElement("button");
     fab.className = "fab";
@@ -432,6 +450,21 @@ async function renderHome() {
     fab.addEventListener("click", () => openAdventureModal());
     document.body.appendChild(fab);
   }
+}
+
+// One titled block of the feed. `kind` is "upcoming" or "past".
+function feedGroupHtml(kind, items, admin) {
+  if (!items.length) return "";
+  const past = kind === "past";
+  return `
+    <section class="feed-group${past ? " past" : ""}">
+      <div class="feed-group-head">
+        <h2>${icon(past ? "flag" : "calendar", 18)}<span>${past ? t("pastAdventures") : t("upcomingAdventures")}</span></h2>
+        <span class="feed-count">${items.length}</span>
+      </div>
+      <div class="adventure-list" data-feed-list>${items.map((a) => adventureCardHtml(a, admin)).join("")}</div>
+    </section>
+  `;
 }
 
 function bucketListHtml(items, admin) {
@@ -453,6 +486,11 @@ function bucketListHtml(items, admin) {
 
 function bucketCardHtml(it, admin) {
   const tempt = localized(it, "tempt") || "";
+  const title = (it.title || "").trim();
+  // Entries made before the name field existed only have a destination, so it
+  // stands in as the heading — and isn't then repeated on the line below.
+  const name = title || it.destination;
+  const place = title && it.destination && it.destination !== title ? it.destination : "";
   const img = it.cover_key
     ? `<img src="/photos/${encodeURIComponent(it.cover_key)}" alt="" loading="lazy" />`
     : `<div class="bucket-placeholder">${icon("mountain", 26)}</div>`;
@@ -464,7 +502,8 @@ function bucketCardHtml(it, admin) {
         ${admin ? `<button class="bucket-photo-btn" data-bucket-photo type="button" aria-label="${t("addPhoto")}">${icon("camera", 15)}</button>` : ""}
       </div>
       <div class="bucket-body">
-        <h3>${escapeHtml(it.destination)}</h3>
+        <h3>${escapeHtml(name)}</h3>
+        ${place ? `<p class="bucket-place">${icon("pin", 12)}<span>${escapeHtml(place)}</span></p>` : ""}
         <p class="bucket-tempt">${escapeHtml(tempt)}</p>
         ${admin ? `<div class="bucket-actions">
           <button class="edit-btn" data-bucket-edit type="button">${icon("pencil", 14)}<span>${t("edit")}</span></button>
@@ -536,8 +575,10 @@ function openPlaceModal(item = null) {
     <div class="modal">
       <h2>${editing ? t("editPlace") : t("addPlace")}</h2>
       <form id="place-form">
+        <div class="field"><label>${t("fieldName")}</label>
+          <input name="title" required maxlength="120" placeholder="${t("placeNamePlaceholder")}" value="${escapeHtml(editing ? (item.title || item.destination || "") : "")}" /></div>
         <div class="field"><label>${t("fieldDestination")}</label>
-          <input name="destination" required maxlength="120" placeholder="${t("titlePlaceholder")}" value="${escapeHtml(editing ? item.destination : "")}" /></div>
+          <input name="destination" maxlength="120" placeholder="${t("placeDestPlaceholder")}" value="${escapeHtml(editing ? item.destination || "" : "")}" /></div>
         <div class="field">
           <label>${t("fieldTempt")}${langNote}</label>
           <textarea name="${temptField}" rows="3" maxlength="600" placeholder="${t("temptPlaceholder")}">${escapeHtml(temptValue)}</textarea>
@@ -579,8 +620,10 @@ function enableDragReorder(list) {
   let dragging = null;
   let orderAtStart = null;
 
+  // Read across the whole feed, not just the list being dragged, so the saved
+  // sort_order stays globally unique: the upcoming block, then the past one.
   const currentOrder = () =>
-    [...list.querySelectorAll(".adventure-card-wrap")].map((el) => el.dataset.slug);
+    [...document.querySelectorAll("#feed .adventure-card-wrap")].map((el) => el.dataset.slug);
 
   const onMove = (e) => {
     if (!dragging) return;
@@ -634,16 +677,19 @@ function adventureCardHtml(a, admin = false) {
     ? `<img src="/photos/${encodeURIComponent(a.cover_key)}" alt="" loading="lazy" />`
     : "";
   const summary = localized(a, "summary");
+  // The group heading already says upcoming vs past, so the badge carries the
+  // more useful fact — when — and falls back to the status if no date is set.
+  const when = a.date_label || (a.status === "completed" ? t("completed") : t("upcoming"));
   return `
     <div class="adventure-card-wrap" data-slug="${escapeHtml(a.slug)}">
       <a class="adventure-card" href="/adventure/${a.slug}" data-link>
         <div class="adventure-card-cover">
-          <span class="status-badge ${a.status === "completed" ? "completed" : ""}">${a.status === "completed" ? t("completed") : t("upcoming")}</span>
+          <span class="status-badge ${a.status === "completed" ? "completed" : ""}">${escapeHtml(when)}</span>
           ${cover}
         </div>
         <div class="adventure-card-body">
           <h2>${escapeHtml(a.title)}</h2>
-          <div class="adventure-meta">${escapeHtml(a.destination || "")}${a.date_label ? " · " + escapeHtml(a.date_label) : ""}</div>
+          ${a.destination ? `<div class="adventure-meta">${icon("pin", 13)}<span>${escapeHtml(a.destination)}</span></div>` : ""}
           <p>${escapeHtml(summary || "")}</p>
         </div>
       </a>
