@@ -50,7 +50,8 @@ const STRINGS = {
     wrongPasscode: "Wrong passcode", adminOn: "Admin mode on", loggedOut: "Logged out",
     couldntVerify: "Couldn't verify — try again",
     captionPrompt: "Caption (optional):",
-    savedToast: "Saved", photoUploaded: "Photo uploaded",
+    savedToast: "Saved", photoUploaded: "Photo uploaded", uploading: "Uploading…",
+    addCover: "📷 Add cover photo", changeCover: "📷 Change cover",
     linkCopied: "Link copied!", copyLinkPrompt: "Copy this link:",
     sectionTitles: { prepare: "How I Prepare", plan: "The Plan", experience: "How I Experience It", reflect: "How I Feel Afterwards" },
   },
@@ -87,7 +88,8 @@ const STRINGS = {
     wrongPasscode: "Nepareiza parole", adminOn: "Administratora režīms ieslēgts", loggedOut: "Izgājis",
     couldntVerify: "Neizdevās pārbaudīt — mēģini vēlreiz",
     captionPrompt: "Paraksts (nav obligāts):",
-    savedToast: "Saglabāts", photoUploaded: "Foto augšupielādēts",
+    savedToast: "Saglabāts", photoUploaded: "Foto augšupielādēts", uploading: "Augšupielādē…",
+    addCover: "📷 Pievienot vāka foto", changeCover: "📷 Mainīt vāka foto",
     linkCopied: "Saite nokopēta!", copyLinkPrompt: "Nokopē šo saiti:",
     sectionTitles: { prepare: "Kā es gatavojos", plan: "Plāns", experience: "Kā es to piedzīvoju", reflect: "Kā jūtos pēc tam" },
   },
@@ -124,7 +126,8 @@ const STRINGS = {
     wrongPasscode: "Onjuiste code", adminOn: "Beheerdersmodus aan", loggedOut: "Uitgelogd",
     couldntVerify: "Kon niet verifiëren — probeer opnieuw",
     captionPrompt: "Bijschrift (optioneel):",
-    savedToast: "Opgeslagen", photoUploaded: "Foto geüpload",
+    savedToast: "Opgeslagen", photoUploaded: "Foto geüpload", uploading: "Uploaden…",
+    addCover: "📷 Omslagfoto toevoegen", changeCover: "📷 Omslagfoto wijzigen",
     linkCopied: "Link gekopieerd!", copyLinkPrompt: "Kopieer deze link:",
     sectionTitles: { prepare: "Hoe ik me voorbereid", plan: "Het Plan", experience: "Hoe ik het beleef", reflect: "Hoe ik me erna voel" },
   },
@@ -444,7 +447,7 @@ async function renderAdventure(slug) {
 
   $app.innerHTML = `
     <a class="back-link" href="/" data-link>${t("allAdventures")}</a>
-    <div class="detail-cover">${cover}</div>
+    <div class="detail-cover">${cover}${admin ? `<button class="cover-upload-btn" id="cover-upload">${adventure.cover_key ? t("changeCover") : t("addCover")}</button>` : ""}</div>
     <div class="detail-header">
       <h1>${escapeHtml(adventure.title)}</h1>
       <div class="detail-meta">${escapeHtml(adventure.destination || "")}${adventure.date_label ? " · " + escapeHtml(adventure.date_label) : ""} · ${adventure.status === "completed" ? t("completed") : t("upcoming")}</div>
@@ -474,6 +477,9 @@ async function renderAdventure(slug) {
   renderSections(adventure, admin);
   renderComments(adventure.comments);
 
+  document.getElementById("cover-upload")?.addEventListener("click", () => {
+    pickAndUploadPhoto(slug, "cover");
+  });
   document.getElementById("share-btn").addEventListener("click", () => shareAdventure(adventure));
   document.getElementById("comment-form").addEventListener("submit", (e) => submitComment(e, adventure.slug));
 }
@@ -538,6 +544,64 @@ function sectionHtml(s, admin) {
   `;
 }
 
+// Phone photos are routinely 5-15MB, which is slow on mobile data and can
+// exceed the Worker's 10MB cap. Re-encode to a sensible max edge before
+// uploading. Falls back to the original file if decoding isn't supported.
+async function downscaleImage(file, maxEdge = 2000, quality = 0.85) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longest = Math.max(bitmap.width, bitmap.height);
+    const scale = Math.min(1, maxEdge / longest);
+
+    // Already small and already a JPEG — nothing to gain by re-encoding.
+    if (scale === 1 && file.type === "image/jpeg" && file.size <= 2 * 1024 * 1024) {
+      bitmap.close?.();
+      return file;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (!blob || blob.size >= file.size) return file;
+
+    const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], name, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
+// Opens the device photo picker and uploads the chosen image.
+// `sectionType` is one of the four section types, or "cover".
+function pickAndUploadPhoto(slug, sectionType, { askCaption = false } = {}) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.addEventListener("change", async () => {
+    const original = input.files[0];
+    if (!original) return;
+    const caption = askCaption ? (prompt(t("captionPrompt")) || "") : "";
+    toast(t("uploading"));
+    const file = await downscaleImage(original);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("section_type", sectionType);
+    fd.append("caption", caption);
+    try {
+      await api(`adventures/${slug}/photos`, { method: "POST", body: fd });
+      toast(t("photoUploaded"));
+      renderAdventure(slug);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  input.click();
+}
+
 function wireSection(slug, section, admin) {
   const card = document.querySelector(`[data-section-id="${section.id}"]`);
   if (!card) return;
@@ -573,26 +637,7 @@ function wireSection(slug, section, admin) {
     });
 
     card.querySelector("[data-add-photo]")?.addEventListener("click", () => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.addEventListener("change", async () => {
-        const file = input.files[0];
-        if (!file) return;
-        const caption = prompt(t("captionPrompt")) || "";
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("section_type", section.type);
-        fd.append("caption", caption);
-        try {
-          await api(`adventures/${slug}/photos`, { method: "POST", body: fd });
-          toast(t("photoUploaded"));
-          renderAdventure(slug);
-        } catch (err) {
-          toast(err.message);
-        }
-      });
-      input.click();
+      pickAndUploadPhoto(slug, section.type, { askCaption: true });
     });
   }
 }
