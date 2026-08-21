@@ -46,6 +46,7 @@ const STRINGS = {
     viewOriginalPlan: "View original plan ↗",
     enterPasscode: "Enter admin passcode:",
     logoutConfirm: "Log out of admin mode?",
+    noPasscodeSet: "No passcode is set on the server yet.",
     wrongPasscode: "Wrong passcode", adminOn: "Admin mode on", loggedOut: "Logged out",
     couldntVerify: "Couldn't verify — try again",
     captionPrompt: "Caption (optional):",
@@ -82,6 +83,7 @@ const STRINGS = {
     viewOriginalPlan: "Skatīt oriģinālo plānu ↗",
     enterPasscode: "Ievadi administratora paroli:",
     logoutConfirm: "Iziet no administratora režīma?",
+    noPasscodeSet: "Serverī vēl nav iestatīta parole.",
     wrongPasscode: "Nepareiza parole", adminOn: "Administratora režīms ieslēgts", loggedOut: "Izgājis",
     couldntVerify: "Neizdevās pārbaudīt — mēģini vēlreiz",
     captionPrompt: "Paraksts (nav obligāts):",
@@ -118,6 +120,7 @@ const STRINGS = {
     viewOriginalPlan: "Bekijk het originele plan ↗",
     enterPasscode: "Voer de beheerderscode in:",
     logoutConfirm: "Beheerdersmodus verlaten?",
+    noPasscodeSet: "Er is nog geen code ingesteld op de server.",
     wrongPasscode: "Onjuiste code", adminOn: "Beheerdersmodus aan", loggedOut: "Uitgelogd",
     couldntVerify: "Kon niet verifiëren — probeer opnieuw",
     captionPrompt: "Bijschrift (optioneel):",
@@ -309,13 +312,13 @@ $adminToggle.addEventListener("click", async () => {
   }
 
   const key = prompt(t("enterPasscode"));
-  if (!key) return;
-  localStorage.setItem(ADMIN_KEY_STORAGE, key);
+  if (!key || !key.trim()) return;
+  localStorage.setItem(ADMIN_KEY_STORAGE, key.trim());
   try {
-    const { ok } = await api("admin/verify", { method: "POST" });
+    const { ok, configured } = await api("admin/verify", { method: "POST" });
     if (!ok) {
       localStorage.removeItem(ADMIN_KEY_STORAGE);
-      toast(t("wrongPasscode"));
+      toast(configured === false ? t("noPasscodeSet") : t("wrongPasscode"));
       return;
     }
     toast(t("adminOn"));

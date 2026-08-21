@@ -16,8 +16,9 @@ function json(data, init = {}) {
 }
 
 function isAdmin(request, env) {
-  const key = request.headers.get("x-admin-key");
-  return !!env.ADMIN_KEY && !!key && key === env.ADMIN_KEY;
+  const key = (request.headers.get("x-admin-key") || "").trim();
+  const expected = (env.ADMIN_KEY || "").trim();
+  return !!expected && !!key && key === expected;
 }
 
 function requireAdmin(request, env) {
@@ -243,7 +244,9 @@ async function handleApi(request, env, url) {
 
   // POST /api/admin/verify
   if (method === "POST" && parts.length === 2 && parts[0] === "admin" && parts[1] === "verify") {
-    return json({ ok: isAdmin(request, env) });
+    // `configured` distinguishes "no ADMIN_KEY secret bound to this Worker"
+    // from "passcode didn't match" — otherwise both look identical.
+    return json({ ok: isAdmin(request, env), configured: !!(env.ADMIN_KEY || "").trim() });
   }
 
   return json({ error: "not found" }, { status: 404 });
