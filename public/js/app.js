@@ -8,11 +8,34 @@ const LANG_STORAGE = "wa_lang";
 const REACTION_EMOJIS = ["🔥", "😍", "🥾", "🎉"];
 const SECTION_TYPES = ["prepare", "plan", "experience", "reflect"];
 const SECTION_META = {
-  prepare: { emoji: "🎒" },
-  plan: { emoji: "🗺️" },
-  experience: { emoji: "🌄" },
-  reflect: { emoji: "💭" },
+  prepare: { icon: "backpack" },
+  plan: { icon: "map" },
+  experience: { icon: "sunrise" },
+  reflect: { icon: "heart" },
 };
+
+// ---------- icons ----------
+// Inline stroke icons (24x24, currentColor) so they inherit text colour and
+// stay crisp at any size — no icon font, no external requests.
+const ICONS = {
+  mountain: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+  backpack: '<path d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M10 6V4.5a2 2 0 0 1 4 0V6"/><path d="M8 14h8"/>',
+  map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/>',
+  sunrise: '<path d="M12 2v6"/><path d="m5.6 10.6 1.4 1.4"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m18.4 10.6-1.4 1.4"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+  heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" x2="15.4" y1="13.5" y2="17.5"/><line x1="15.4" x2="8.6" y1="6.5" y2="10.5"/>',
+  message: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  externalLink: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+};
+
+function icon(name, size = 18) {
+  return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+}
 
 // ---------- translations ----------
 
@@ -24,11 +47,11 @@ const STRINGS = {
     couldntLoad: "Couldn't load adventures. Pull to refresh?",
     noAdventuresTitle: "No adventures yet",
     noAdventuresBody: "Tap the + button to add your first one.",
-    allAdventures: "← All adventures",
+    allAdventures: "All adventures",
     notFoundTitle: "Not found", notFoundBody: "That page doesn't exist.", goHome: "Go home",
     loading: "Loading…",
-    share: "📤 Share",
-    comments: "💬 Comments",
+    share: "Share",
+    comments: "Comments",
     namePlaceholder: "Your name",
     commentPlaceholder: "Say something…",
     postComment: "Post comment",
@@ -39,11 +62,11 @@ const STRINGS = {
     titlePlaceholder: "e.g. Andorra", whenPlaceholder: "e.g. September 2026",
     summaryPlaceholder: "One or two sentences", sourcePlaceholder: "https://…",
     cancel: "Cancel", create: "Create",
-    edit: "✏️ Edit", save: "💾 Save",
+    edit: "Edit", save: "Save",
     editHint: "Tip: \"## \" for a header, \"-> \" for a bullet, blank line for a new paragraph, **bold** to highlight.",
     nothingHereAdmin: "Nothing here yet — tap Edit to add your notes.",
     nothingHerePublic: "Nothing here yet.",
-    viewOriginalPlan: "View original plan ↗",
+    viewOriginalPlan: "View original plan",
     enterPasscode: "Enter admin passcode:",
     logoutConfirm: "Log out of admin mode?",
     noPasscodeSet: "No passcode is set on the server yet.",
@@ -51,7 +74,7 @@ const STRINGS = {
     couldntVerify: "Couldn't verify — try again",
     captionPrompt: "Caption (optional):",
     savedToast: "Saved", photoUploaded: "Photo uploaded", uploading: "Uploading…",
-    addCover: "📷 Add cover photo", changeCover: "📷 Change cover",
+    addCover: "Add cover photo", changeCover: "Change cover",
     linkCopied: "Link copied!", copyLinkPrompt: "Copy this link:",
     sectionTitles: { prepare: "How I Prepare", plan: "The Plan", experience: "How I Experience It", reflect: "How I Feel Afterwards" },
   },
@@ -62,11 +85,11 @@ const STRINGS = {
     couldntLoad: "Neizdevās ielādēt. Pamēģini atsvaidzināt?",
     noAdventuresTitle: "Vēl nav neviena piedzīvojuma",
     noAdventuresBody: "Pieskaries + pogai, lai pievienotu pirmo.",
-    allAdventures: "← Visi piedzīvojumi",
+    allAdventures: "Visi piedzīvojumi",
     notFoundTitle: "Nav atrasts", notFoundBody: "Šāda lapa neeksistē.", goHome: "Uz sākumu",
     loading: "Ielādē…",
-    share: "📤 Dalīties",
-    comments: "💬 Komentāri",
+    share: "Dalīties",
+    comments: "Komentāri",
     namePlaceholder: "Tavs vārds",
     commentPlaceholder: "Uzraksti kaut ko…",
     postComment: "Publicēt komentāru",
@@ -77,11 +100,11 @@ const STRINGS = {
     titlePlaceholder: "piem., Andora", whenPlaceholder: "piem., 2026. gada septembris",
     summaryPlaceholder: "Viens vai divi teikumi", sourcePlaceholder: "https://…",
     cancel: "Atcelt", create: "Izveidot",
-    edit: "✏️ Rediģēt", save: "💾 Saglabāt",
+    edit: "Rediģēt", save: "Saglabāt",
     editHint: "Padoms: \"## \" virsrakstam, \"-> \" sarakstam, tukša rinda jaunai rindkopai, **bold** izcēlumam.",
     nothingHereAdmin: "Šeit vēl nekā nav — pieskaries Rediģēt, lai pievienotu piezīmes.",
     nothingHerePublic: "Šeit vēl nekā nav.",
-    viewOriginalPlan: "Skatīt oriģinālo plānu ↗",
+    viewOriginalPlan: "Skatīt oriģinālo plānu",
     enterPasscode: "Ievadi administratora paroli:",
     logoutConfirm: "Iziet no administratora režīma?",
     noPasscodeSet: "Serverī vēl nav iestatīta parole.",
@@ -89,7 +112,7 @@ const STRINGS = {
     couldntVerify: "Neizdevās pārbaudīt — mēģini vēlreiz",
     captionPrompt: "Paraksts (nav obligāts):",
     savedToast: "Saglabāts", photoUploaded: "Foto augšupielādēts", uploading: "Augšupielādē…",
-    addCover: "📷 Pievienot vāka foto", changeCover: "📷 Mainīt vāka foto",
+    addCover: "Pievienot vāka foto", changeCover: "Mainīt vāka foto",
     linkCopied: "Saite nokopēta!", copyLinkPrompt: "Nokopē šo saiti:",
     sectionTitles: { prepare: "Kā es gatavojos", plan: "Plāns", experience: "Kā es to piedzīvoju", reflect: "Kā jūtos pēc tam" },
   },
@@ -100,11 +123,11 @@ const STRINGS = {
     couldntLoad: "Laden mislukt. Probeer te vernieuwen?",
     noAdventuresTitle: "Nog geen avonturen",
     noAdventuresBody: "Tik op de + knop om je eerste avontuur toe te voegen.",
-    allAdventures: "← Alle avonturen",
+    allAdventures: "Alle avonturen",
     notFoundTitle: "Niet gevonden", notFoundBody: "Deze pagina bestaat niet.", goHome: "Naar home",
     loading: "Laden…",
-    share: "📤 Delen",
-    comments: "💬 Reacties",
+    share: "Delen",
+    comments: "Reacties",
     namePlaceholder: "Jouw naam",
     commentPlaceholder: "Schrijf iets…",
     postComment: "Reactie plaatsen",
@@ -115,11 +138,11 @@ const STRINGS = {
     titlePlaceholder: "bijv. Andorra", whenPlaceholder: "bijv. september 2026",
     summaryPlaceholder: "Een of twee zinnen", sourcePlaceholder: "https://…",
     cancel: "Annuleren", create: "Aanmaken",
-    edit: "✏️ Bewerken", save: "💾 Opslaan",
+    edit: "Bewerken", save: "Opslaan",
     editHint: "Tip: \"## \" voor een kop, \"-> \" voor een opsomming, lege regel voor een nieuwe alinea, **bold** om te markeren.",
     nothingHereAdmin: "Hier staat nog niets — tik op Bewerken om iets toe te voegen.",
     nothingHerePublic: "Hier staat nog niets.",
-    viewOriginalPlan: "Bekijk het originele plan ↗",
+    viewOriginalPlan: "Bekijk het originele plan",
     enterPasscode: "Voer de beheerderscode in:",
     logoutConfirm: "Beheerdersmodus verlaten?",
     noPasscodeSet: "Er is nog geen code ingesteld op de server.",
@@ -127,7 +150,7 @@ const STRINGS = {
     couldntVerify: "Kon niet verifiëren — probeer opnieuw",
     captionPrompt: "Bijschrift (optioneel):",
     savedToast: "Opgeslagen", photoUploaded: "Foto geüpload", uploading: "Uploaden…",
-    addCover: "📷 Omslagfoto toevoegen", changeCover: "📷 Omslagfoto wijzigen",
+    addCover: "Omslagfoto toevoegen", changeCover: "Omslagfoto wijzigen",
     linkCopied: "Link gekopieerd!", copyLinkPrompt: "Kopieer deze link:",
     sectionTitles: { prepare: "Hoe ik me voorbereid", plan: "Het Plan", experience: "Hoe ik het beleef", reflect: "Hoe ik me erna voel" },
   },
@@ -350,7 +373,7 @@ async function renderHome() {
     : `<div class="empty-state"><h2>${t("noAdventuresTitle")}</h2><p>${t("noAdventuresBody")}</p></div>`;
 
   $app.innerHTML = `
-    <h1 class="page-title">🏔️ Zane's Adventures</h1>
+    <h1 class="page-title">Zane&rsquo;s Adventures</h1>
     <p class="page-subtitle">${t("tagline")}</p>
     ${cards}
   `;
@@ -358,7 +381,7 @@ async function renderHome() {
   if (isAdmin()) {
     const fab = document.createElement("button");
     fab.className = "fab";
-    fab.textContent = "+";
+    fab.innerHTML = icon("plus", 24);
     fab.title = t("newAdventure");
     fab.addEventListener("click", openNewAdventureModal);
     document.body.appendChild(fab);
@@ -446,24 +469,24 @@ async function renderAdventure(slug) {
   const summary = localized(adventure, "summary");
 
   $app.innerHTML = `
-    <a class="back-link" href="/" data-link>${t("allAdventures")}</a>
-    <div class="detail-cover">${cover}${admin ? `<button class="cover-upload-btn" id="cover-upload">${adventure.cover_key ? t("changeCover") : t("addCover")}</button>` : ""}</div>
+    <a class="back-link" href="/" data-link>${icon("arrowLeft", 16)}<span>${t("allAdventures")}</span></a>
+    <div class="detail-cover">${cover}${admin ? `<button class="cover-upload-btn" id="cover-upload">${icon("camera", 16)}<span>${adventure.cover_key ? t("changeCover") : t("addCover")}</span></button>` : ""}</div>
     <div class="detail-header">
       <h1>${escapeHtml(adventure.title)}</h1>
       <div class="detail-meta">${escapeHtml(adventure.destination || "")}${adventure.date_label ? " · " + escapeHtml(adventure.date_label) : ""} · ${adventure.status === "completed" ? t("completed") : t("upcoming")}</div>
       ${summary ? `<p class="detail-summary">${escapeHtml(summary)}</p>` : ""}
-      ${adventure.source_url ? `<a class="source-link" href="${escapeHtml(adventure.source_url)}" target="_blank" rel="noopener">${t("viewOriginalPlan")}</a>` : ""}
+      ${adventure.source_url ? `<a class="source-link" href="${escapeHtml(adventure.source_url)}" target="_blank" rel="noopener"><span>${t("viewOriginalPlan")}</span>${icon("externalLink", 14)}</a>` : ""}
     </div>
 
     <div class="action-row">
       <div class="reactions" id="reactions"></div>
-      <button class="btn btn-outline btn-small" id="share-btn">${t("share")}</button>
+      <button class="btn btn-outline btn-small" id="share-btn">${icon("share", 16)}<span>${t("share")}</span></button>
     </div>
 
     <div id="sections"></div>
 
     <div class="comments">
-      <h3>${t("comments")}</h3>
+      <h3>${icon("message", 19)}<span>${t("comments")}</span></h3>
       <form class="comment-form" id="comment-form">
         <input name="name" placeholder="${t("namePlaceholder")}" required maxlength="60" />
         <textarea name="body" placeholder="${t("commentPlaceholder")}" required maxlength="2000"></textarea>
@@ -522,7 +545,7 @@ function renderSections(adventure, admin) {
 }
 
 function sectionHtml(s, admin) {
-  const meta = SECTION_META[s.type] || { emoji: "📍" };
+  const meta = SECTION_META[s.type] || { icon: "map" };
   const title = t("sectionTitles")[s.type] || s.title;
   const body = localized(s, "body");
   const bodyHtml = body
@@ -530,13 +553,13 @@ function sectionHtml(s, admin) {
     : `<div class="section-body empty" data-view>${admin ? t("nothingHereAdmin") : t("nothingHerePublic")}</div>`;
 
   const photos = s.photos.map((p) => `<img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />`).join("");
-  const addTile = admin ? `<div class="photo-add-tile" data-add-photo="${s.type}">＋</div>` : "";
+  const addTile = admin ? `<div class="photo-add-tile" data-add-photo="${s.type}">${icon("plus", 22)}</div>` : "";
 
   return `
     <div class="section-card" data-section="${s.type}" data-section-id="${s.id}">
       <div class="section-card-head">
-        <h3>${meta.emoji} ${escapeHtml(title)}</h3>
-        ${admin ? `<button class="edit-btn" data-edit>${t("edit")}</button>` : ""}
+        <h3>${icon(meta.icon, 19)}<span>${escapeHtml(title)}</span></h3>
+        ${admin ? `<button class="edit-btn" data-edit>${icon("pencil", 15)}<span>${t("edit")}</span></button>` : ""}
       </div>
       ${bodyHtml}
       ${(s.photos.length || admin) ? `<div class="photo-strip">${photos}${addTile}</div>` : ""}
@@ -620,7 +643,7 @@ function wireSection(slug, section, admin) {
       wrap.append(textarea, hint);
       viewEl.replaceWith(wrap);
       const editBtn = card.querySelector("[data-edit]");
-      editBtn.textContent = t("save");
+      editBtn.innerHTML = `${icon("check", 15)}<span>${t("save")}</span>`;
       editBtn.onclick = async () => {
         try {
           await api(`sections/${section.id}`, {
