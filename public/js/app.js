@@ -2,14 +2,163 @@
 
 const $app = document.getElementById("app");
 const $adminToggle = document.getElementById("admin-toggle");
+const $langSwitch = document.getElementById("lang-switch");
 const ADMIN_KEY_STORAGE = "wa_admin_key";
+const LANG_STORAGE = "wa_lang";
 const REACTION_EMOJIS = ["🔥", "😍", "🥾", "🎉"];
+const SECTION_TYPES = ["prepare", "plan", "experience", "reflect"];
 const SECTION_META = {
   prepare: { emoji: "🎒" },
   plan: { emoji: "🗺️" },
   experience: { emoji: "🌄" },
   reflect: { emoji: "💭" },
 };
+
+// ---------- translations ----------
+
+const STRINGS = {
+  en: {
+    tagline: "How I prepare, the plan, how I experience it, and how I feel afterwards.",
+    upcoming: "Upcoming", completed: "Completed",
+    loadingAdventures: "Loading adventures…",
+    couldntLoad: "Couldn't load adventures. Pull to refresh?",
+    noAdventuresTitle: "No adventures yet",
+    noAdventuresBody: "Tap the + button to add your first one.",
+    allAdventures: "← All adventures",
+    notFoundTitle: "Not found", notFoundBody: "That page doesn't exist.", goHome: "Go home",
+    loading: "Loading…",
+    share: "📤 Share",
+    comments: "💬 Comments",
+    namePlaceholder: "Your name",
+    commentPlaceholder: "Say something…",
+    postComment: "Post comment",
+    noComments: "No comments yet — be the first.",
+    newAdventure: "New adventure",
+    fieldTitle: "Title", fieldDestination: "Destination", fieldWhen: "When",
+    fieldStatus: "Status", fieldSummary: "Summary", fieldSource: "Source link (optional)",
+    titlePlaceholder: "e.g. Andorra", whenPlaceholder: "e.g. September 2026",
+    summaryPlaceholder: "One or two sentences", sourcePlaceholder: "https://…",
+    cancel: "Cancel", create: "Create",
+    edit: "✏️ Edit", save: "💾 Save",
+    editHint: "Tip: \"## \" for a header, \"-> \" for a bullet, blank line for a new paragraph, **bold** to highlight.",
+    nothingHereAdmin: "Nothing here yet — tap Edit to add your notes.",
+    nothingHerePublic: "Nothing here yet.",
+    viewOriginalPlan: "View original plan ↗",
+    enterPasscode: "Enter admin passcode:",
+    logoutConfirm: "Log out of admin mode?",
+    wrongPasscode: "Wrong passcode", adminOn: "Admin mode on", loggedOut: "Logged out",
+    couldntVerify: "Couldn't verify — try again",
+    captionPrompt: "Caption (optional):",
+    savedToast: "Saved", photoUploaded: "Photo uploaded",
+    linkCopied: "Link copied!", copyLinkPrompt: "Copy this link:",
+    sectionTitles: { prepare: "How I Prepare", plan: "The Plan", experience: "How I Experience It", reflect: "How I Feel Afterwards" },
+  },
+  lv: {
+    tagline: "Kā es gatavojos, plāns, kā es to piedzīvoju un kā jūtos pēc tam.",
+    upcoming: "Gaidāms", completed: "Pabeigts",
+    loadingAdventures: "Ielādē piedzīvojumus…",
+    couldntLoad: "Neizdevās ielādēt. Pamēģini atsvaidzināt?",
+    noAdventuresTitle: "Vēl nav neviena piedzīvojuma",
+    noAdventuresBody: "Pieskaries + pogai, lai pievienotu pirmo.",
+    allAdventures: "← Visi piedzīvojumi",
+    notFoundTitle: "Nav atrasts", notFoundBody: "Šāda lapa neeksistē.", goHome: "Uz sākumu",
+    loading: "Ielādē…",
+    share: "📤 Dalīties",
+    comments: "💬 Komentāri",
+    namePlaceholder: "Tavs vārds",
+    commentPlaceholder: "Uzraksti kaut ko…",
+    postComment: "Publicēt komentāru",
+    noComments: "Vēl nav komentāru — esi pirmais.",
+    newAdventure: "Jauns piedzīvojums",
+    fieldTitle: "Nosaukums", fieldDestination: "Galamērķis", fieldWhen: "Kad",
+    fieldStatus: "Statuss", fieldSummary: "Kopsavilkums", fieldSource: "Avota saite (nav obligāta)",
+    titlePlaceholder: "piem., Andora", whenPlaceholder: "piem., 2026. gada septembris",
+    summaryPlaceholder: "Viens vai divi teikumi", sourcePlaceholder: "https://…",
+    cancel: "Atcelt", create: "Izveidot",
+    edit: "✏️ Rediģēt", save: "💾 Saglabāt",
+    editHint: "Padoms: \"## \" virsrakstam, \"-> \" sarakstam, tukša rinda jaunai rindkopai, **bold** izcēlumam.",
+    nothingHereAdmin: "Šeit vēl nekā nav — pieskaries Rediģēt, lai pievienotu piezīmes.",
+    nothingHerePublic: "Šeit vēl nekā nav.",
+    viewOriginalPlan: "Skatīt oriģinālo plānu ↗",
+    enterPasscode: "Ievadi administratora paroli:",
+    logoutConfirm: "Iziet no administratora režīma?",
+    wrongPasscode: "Nepareiza parole", adminOn: "Administratora režīms ieslēgts", loggedOut: "Izgājis",
+    couldntVerify: "Neizdevās pārbaudīt — mēģini vēlreiz",
+    captionPrompt: "Paraksts (nav obligāts):",
+    savedToast: "Saglabāts", photoUploaded: "Foto augšupielādēts",
+    linkCopied: "Saite nokopēta!", copyLinkPrompt: "Nokopē šo saiti:",
+    sectionTitles: { prepare: "Kā es gatavojos", plan: "Plāns", experience: "Kā es to piedzīvoju", reflect: "Kā jūtos pēc tam" },
+  },
+  nl: {
+    tagline: "Hoe ik me voorbereid, het plan, hoe ik het beleef, en hoe ik me erna voel.",
+    upcoming: "Aankomend", completed: "Voltooid",
+    loadingAdventures: "Avonturen laden…",
+    couldntLoad: "Laden mislukt. Probeer te vernieuwen?",
+    noAdventuresTitle: "Nog geen avonturen",
+    noAdventuresBody: "Tik op de + knop om je eerste avontuur toe te voegen.",
+    allAdventures: "← Alle avonturen",
+    notFoundTitle: "Niet gevonden", notFoundBody: "Deze pagina bestaat niet.", goHome: "Naar home",
+    loading: "Laden…",
+    share: "📤 Delen",
+    comments: "💬 Reacties",
+    namePlaceholder: "Jouw naam",
+    commentPlaceholder: "Schrijf iets…",
+    postComment: "Reactie plaatsen",
+    noComments: "Nog geen reacties — wees de eerste.",
+    newAdventure: "Nieuw avontuur",
+    fieldTitle: "Titel", fieldDestination: "Bestemming", fieldWhen: "Wanneer",
+    fieldStatus: "Status", fieldSummary: "Samenvatting", fieldSource: "Bronlink (optioneel)",
+    titlePlaceholder: "bijv. Andorra", whenPlaceholder: "bijv. september 2026",
+    summaryPlaceholder: "Een of twee zinnen", sourcePlaceholder: "https://…",
+    cancel: "Annuleren", create: "Aanmaken",
+    edit: "✏️ Bewerken", save: "💾 Opslaan",
+    editHint: "Tip: \"## \" voor een kop, \"-> \" voor een opsomming, lege regel voor een nieuwe alinea, **bold** om te markeren.",
+    nothingHereAdmin: "Hier staat nog niets — tik op Bewerken om iets toe te voegen.",
+    nothingHerePublic: "Hier staat nog niets.",
+    viewOriginalPlan: "Bekijk het originele plan ↗",
+    enterPasscode: "Voer de beheerderscode in:",
+    logoutConfirm: "Beheerdersmodus verlaten?",
+    wrongPasscode: "Onjuiste code", adminOn: "Beheerdersmodus aan", loggedOut: "Uitgelogd",
+    couldntVerify: "Kon niet verifiëren — probeer opnieuw",
+    captionPrompt: "Bijschrift (optioneel):",
+    savedToast: "Opgeslagen", photoUploaded: "Foto geüpload",
+    linkCopied: "Link gekopieerd!", copyLinkPrompt: "Kopieer deze link:",
+    sectionTitles: { prepare: "Hoe ik me voorbereid", plan: "Het Plan", experience: "Hoe ik het beleef", reflect: "Hoe ik me erna voel" },
+  },
+};
+
+let lang = localStorage.getItem(LANG_STORAGE) || "en";
+if (!STRINGS[lang]) lang = "en";
+function t(key) {
+  return STRINGS[lang][key] ?? STRINGS.en[key] ?? key;
+}
+
+function setLang(next) {
+  if (!STRINGS[next] || next === lang) return;
+  lang = next;
+  localStorage.setItem(LANG_STORAGE, lang);
+  updateLangSwitch();
+  render();
+}
+
+function updateLangSwitch() {
+  $langSwitch.querySelectorAll("button").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.lang === lang);
+  });
+}
+
+$langSwitch.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-lang]");
+  if (btn) setLang(btn.dataset.lang);
+});
+
+// Field name for a given language, with fallback to English when the
+// translation hasn't been filled in yet.
+function localized(obj, base) {
+  const key = lang === "en" ? base : `${base}_${lang}`;
+  const value = obj[key];
+  return value && String(value).trim() ? value : obj[base];
+}
 
 // ---------- small utils ----------
 
@@ -132,13 +281,14 @@ window.addEventListener("popstate", render);
 async function render() {
   const path = location.pathname;
   updateAdminToggle();
+  updateLangSwitch();
 
   if (path === "/" || path === "") return renderHome();
 
   const adventureMatch = path.match(/^\/adventure\/([^/]+)\/?$/);
   if (adventureMatch) return renderAdventure(adventureMatch[1]);
 
-  $app.innerHTML = `<div class="empty-state"><h2>Not found</h2><p>That page doesn't exist.</p><a class="btn" href="/" data-link>Go home</a></div>`;
+  $app.innerHTML = `<div class="empty-state"><h2>${t("notFoundTitle")}</h2><p>${t("notFoundBody")}</p><a class="btn" href="/" data-link>${t("goHome")}</a></div>`;
 }
 
 function updateAdminToggle() {
@@ -149,53 +299,53 @@ function updateAdminToggle() {
 
 $adminToggle.addEventListener("click", async () => {
   if (isAdmin()) {
-    if (confirm("Log out of admin mode?")) {
+    if (confirm(t("logoutConfirm"))) {
       localStorage.removeItem(ADMIN_KEY_STORAGE);
-      toast("Logged out");
+      toast(t("loggedOut"));
       updateAdminToggle();
       render();
     }
     return;
   }
 
-  const key = prompt("Enter admin passcode:");
+  const key = prompt(t("enterPasscode"));
   if (!key) return;
   localStorage.setItem(ADMIN_KEY_STORAGE, key);
   try {
     const { ok } = await api("admin/verify", { method: "POST" });
     if (!ok) {
       localStorage.removeItem(ADMIN_KEY_STORAGE);
-      toast("Wrong passcode");
+      toast(t("wrongPasscode"));
       return;
     }
-    toast("Admin mode on");
+    toast(t("adminOn"));
     updateAdminToggle();
     render();
   } catch {
     localStorage.removeItem(ADMIN_KEY_STORAGE);
-    toast("Couldn't verify — try again");
+    toast(t("couldntVerify"));
   }
 });
 
 // ---------- home / feed ----------
 
 async function renderHome() {
-  $app.innerHTML = `<p class="empty-state">Loading adventures…</p>`;
+  $app.innerHTML = `<p class="empty-state">${t("loadingAdventures")}</p>`;
   let adventures = [];
   try {
     ({ adventures } = await api("adventures"));
   } catch {
-    $app.innerHTML = `<p class="empty-state">Couldn't load adventures. Pull to refresh?</p>`;
+    $app.innerHTML = `<p class="empty-state">${t("couldntLoad")}</p>`;
     return;
   }
 
   const cards = adventures.length
     ? adventures.map(adventureCardHtml).join("")
-    : `<div class="empty-state"><h2>No adventures yet</h2><p>Tap the + button to add your first one.</p></div>`;
+    : `<div class="empty-state"><h2>${t("noAdventuresTitle")}</h2><p>${t("noAdventuresBody")}</p></div>`;
 
   $app.innerHTML = `
     <h1 class="page-title">🏔️ Zane's Adventures</h1>
-    <p class="page-subtitle">How I prepare, the plan, how I experience it, and how I feel afterwards.</p>
+    <p class="page-subtitle">${t("tagline")}</p>
     ${cards}
   `;
 
@@ -203,10 +353,9 @@ async function renderHome() {
     const fab = document.createElement("button");
     fab.className = "fab";
     fab.textContent = "+";
-    fab.title = "New adventure";
+    fab.title = t("newAdventure");
     fab.addEventListener("click", openNewAdventureModal);
     document.body.appendChild(fab);
-    $app.dataset.hasFab = "1";
   }
 }
 
@@ -214,16 +363,17 @@ function adventureCardHtml(a) {
   const cover = a.cover_key
     ? `<img src="/photos/${encodeURIComponent(a.cover_key)}" alt="" loading="lazy" />`
     : "";
+  const summary = localized(a, "summary");
   return `
     <a class="adventure-card" href="/adventure/${a.slug}" data-link>
       <div class="adventure-card-cover">
-        <span class="status-badge ${a.status === "completed" ? "completed" : ""}">${a.status === "completed" ? "Completed" : "Upcoming"}</span>
+        <span class="status-badge ${a.status === "completed" ? "completed" : ""}">${a.status === "completed" ? t("completed") : t("upcoming")}</span>
         ${cover}
       </div>
       <div class="adventure-card-body">
         <h2>${escapeHtml(a.title)}</h2>
         <div class="adventure-meta">${escapeHtml(a.destination || "")}${a.date_label ? " · " + escapeHtml(a.date_label) : ""}</div>
-        <p>${escapeHtml(a.summary || "")}</p>
+        <p>${escapeHtml(summary || "")}</p>
       </div>
     </a>
   `;
@@ -234,19 +384,19 @@ function openNewAdventureModal() {
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
     <div class="modal">
-      <h2>New adventure</h2>
+      <h2>${t("newAdventure")}</h2>
       <form id="new-adventure-form">
-        <div class="field"><label>Title</label><input name="title" required placeholder="e.g. Andorra" /></div>
-        <div class="field"><label>Destination</label><input name="destination" placeholder="e.g. Andorra" /></div>
-        <div class="field"><label>When</label><input name="date_label" placeholder="e.g. September 2026" /></div>
-        <div class="field"><label>Status</label>
-          <select name="status"><option value="upcoming">Upcoming</option><option value="completed">Completed</option></select>
+        <div class="field"><label>${t("fieldTitle")}</label><input name="title" required placeholder="${t("titlePlaceholder")}" /></div>
+        <div class="field"><label>${t("fieldDestination")}</label><input name="destination" placeholder="${t("titlePlaceholder")}" /></div>
+        <div class="field"><label>${t("fieldWhen")}</label><input name="date_label" placeholder="${t("whenPlaceholder")}" /></div>
+        <div class="field"><label>${t("fieldStatus")}</label>
+          <select name="status"><option value="upcoming">${t("upcoming")}</option><option value="completed">${t("completed")}</option></select>
         </div>
-        <div class="field"><label>Summary</label><textarea name="summary" placeholder="One or two sentences"></textarea></div>
-        <div class="field"><label>Source link (optional)</label><input name="source_url" placeholder="https://…" /></div>
+        <div class="field"><label>${t("fieldSummary")}</label><textarea name="summary" placeholder="${t("summaryPlaceholder")}"></textarea></div>
+        <div class="field"><label>${t("fieldSource")}</label><input name="source_url" placeholder="${t("sourcePlaceholder")}" /></div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-outline btn-block" id="cancel-modal">Cancel</button>
-          <button type="submit" class="btn btn-block">Create</button>
+          <button type="button" class="btn btn-outline btn-block" id="cancel-modal">${t("cancel")}</button>
+          <button type="submit" class="btn btn-block">${t("create")}</button>
         </div>
       </form>
     </div>
@@ -273,13 +423,13 @@ function openNewAdventureModal() {
 
 async function renderAdventure(slug) {
   document.querySelectorAll(".fab").forEach((f) => f.remove());
-  $app.innerHTML = `<p class="empty-state">Loading…</p>`;
+  $app.innerHTML = `<p class="empty-state">${t("loading")}</p>`;
 
   let adventure;
   try {
     ({ adventure } = await api(`adventures/${slug}`));
   } catch {
-    $app.innerHTML = `<div class="empty-state"><h2>Not found</h2><a class="btn" href="/" data-link>Go home</a></div>`;
+    $app.innerHTML = `<div class="empty-state"><h2>${t("notFoundTitle")}</h2><a class="btn" href="/" data-link>${t("goHome")}</a></div>`;
     return;
   }
 
@@ -287,30 +437,31 @@ async function renderAdventure(slug) {
   const cover = adventure.cover_key
     ? `<img src="/photos/${encodeURIComponent(adventure.cover_key)}" alt="" />`
     : "";
+  const summary = localized(adventure, "summary");
 
   $app.innerHTML = `
-    <a class="back-link" href="/" data-link>← All adventures</a>
+    <a class="back-link" href="/" data-link>${t("allAdventures")}</a>
     <div class="detail-cover">${cover}</div>
     <div class="detail-header">
       <h1>${escapeHtml(adventure.title)}</h1>
-      <div class="detail-meta">${escapeHtml(adventure.destination || "")}${adventure.date_label ? " · " + escapeHtml(adventure.date_label) : ""} · ${adventure.status === "completed" ? "Completed" : "Upcoming"}</div>
-      ${adventure.summary ? `<p class="detail-summary">${escapeHtml(adventure.summary)}</p>` : ""}
-      ${adventure.source_url ? `<a class="source-link" href="${escapeHtml(adventure.source_url)}" target="_blank" rel="noopener">View original plan ↗</a>` : ""}
+      <div class="detail-meta">${escapeHtml(adventure.destination || "")}${adventure.date_label ? " · " + escapeHtml(adventure.date_label) : ""} · ${adventure.status === "completed" ? t("completed") : t("upcoming")}</div>
+      ${summary ? `<p class="detail-summary">${escapeHtml(summary)}</p>` : ""}
+      ${adventure.source_url ? `<a class="source-link" href="${escapeHtml(adventure.source_url)}" target="_blank" rel="noopener">${t("viewOriginalPlan")}</a>` : ""}
     </div>
 
     <div class="action-row">
       <div class="reactions" id="reactions"></div>
-      <button class="btn btn-outline btn-small" id="share-btn">📤 Share</button>
+      <button class="btn btn-outline btn-small" id="share-btn">${t("share")}</button>
     </div>
 
     <div id="sections"></div>
 
     <div class="comments">
-      <h3>💬 Comments</h3>
+      <h3>${t("comments")}</h3>
       <form class="comment-form" id="comment-form">
-        <input name="name" placeholder="Your name" required maxlength="60" />
-        <textarea name="body" placeholder="Say something…" required maxlength="2000"></textarea>
-        <button type="submit" class="btn btn-block">Post comment</button>
+        <input name="name" placeholder="${t("namePlaceholder")}" required maxlength="60" />
+        <textarea name="body" placeholder="${t("commentPlaceholder")}" required maxlength="2000"></textarea>
+        <button type="submit" class="btn btn-block">${t("postComment")}</button>
       </form>
       <div id="comment-list"></div>
     </div>
@@ -363,9 +514,11 @@ function renderSections(adventure, admin) {
 
 function sectionHtml(s, admin) {
   const meta = SECTION_META[s.type] || { emoji: "📍" };
-  const bodyHtml = s.body
-    ? `<div class="section-body" data-view>${mdToHtml(s.body)}</div>`
-    : `<div class="section-body empty" data-view>${admin ? "Nothing here yet — tap Edit to add your notes." : "Nothing here yet."}</div>`;
+  const title = t("sectionTitles")[s.type] || s.title;
+  const body = localized(s, "body");
+  const bodyHtml = body
+    ? `<div class="section-body" data-view>${mdToHtml(body)}</div>`
+    : `<div class="section-body empty" data-view>${admin ? t("nothingHereAdmin") : t("nothingHerePublic")}</div>`;
 
   const photos = s.photos.map((p) => `<img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />`).join("");
   const addTile = admin ? `<div class="photo-add-tile" data-add-photo="${s.type}">＋</div>` : "";
@@ -373,8 +526,8 @@ function sectionHtml(s, admin) {
   return `
     <div class="section-card" data-section="${s.type}" data-section-id="${s.id}">
       <div class="section-card-head">
-        <h3>${meta.emoji} ${escapeHtml(s.title)}</h3>
-        ${admin ? `<button class="edit-btn" data-edit>✏️ Edit</button>` : ""}
+        <h3>${meta.emoji} ${escapeHtml(title)}</h3>
+        ${admin ? `<button class="edit-btn" data-edit>${t("edit")}</button>` : ""}
       </div>
       ${bodyHtml}
       ${(s.photos.length || admin) ? `<div class="photo-strip">${photos}${addTile}</div>` : ""}
@@ -388,22 +541,27 @@ function wireSection(slug, section, admin) {
 
   if (admin) {
     card.querySelector("[data-edit]")?.addEventListener("click", () => {
+      const currentLang = lang;
+      const bodyField = currentLang === "en" ? "body" : `body_${currentLang}`;
       const viewEl = card.querySelector("[data-view]");
       const wrap = document.createElement("div");
       const textarea = document.createElement("textarea");
-      textarea.value = section.body;
+      textarea.value = section[bodyField] || "";
       const hint = document.createElement("p");
       hint.className = "edit-hint";
-      hint.textContent = "Tip: \"## \" for a header, \"-> \" for a bullet, blank line for a new paragraph, **bold** to highlight.";
+      hint.textContent = t("editHint");
       wrap.append(textarea, hint);
       viewEl.replaceWith(wrap);
       const editBtn = card.querySelector("[data-edit]");
-      editBtn.textContent = "💾 Save";
+      editBtn.textContent = t("save");
       editBtn.onclick = async () => {
         try {
-          await api(`sections/${section.id}`, { method: "PATCH", body: JSON.stringify({ body: textarea.value }) });
-          section.body = textarea.value;
-          toast("Saved");
+          await api(`sections/${section.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ body: textarea.value, lang: currentLang }),
+          });
+          section[bodyField] = textarea.value;
+          toast(t("savedToast"));
           renderAdventure(slug);
         } catch (err) {
           toast(err.message);
@@ -418,14 +576,14 @@ function wireSection(slug, section, admin) {
       input.addEventListener("change", async () => {
         const file = input.files[0];
         if (!file) return;
-        const caption = prompt("Caption (optional):") || "";
+        const caption = prompt(t("captionPrompt")) || "";
         const fd = new FormData();
         fd.append("file", file);
         fd.append("section_type", section.type);
         fd.append("caption", caption);
         try {
           await api(`adventures/${slug}/photos`, { method: "POST", body: fd });
-          toast("Photo uploaded");
+          toast(t("photoUploaded"));
           renderAdventure(slug);
         } catch (err) {
           toast(err.message);
@@ -439,7 +597,7 @@ function wireSection(slug, section, admin) {
 function renderComments(comments) {
   const el = document.getElementById("comment-list");
   if (!comments.length) {
-    el.innerHTML = `<p class="empty-state">No comments yet — be the first.</p>`;
+    el.innerHTML = `<p class="empty-state">${t("noComments")}</p>`;
     return;
   }
   el.innerHTML = comments.map((c) => `
@@ -466,9 +624,10 @@ async function submitComment(e, slug) {
 
 async function shareAdventure(adventure) {
   const url = `${location.origin}/adventure/${adventure.slug}`;
+  const summary = localized(adventure, "summary");
   if (navigator.share) {
     try {
-      await navigator.share({ title: adventure.title, text: adventure.summary || "", url });
+      await navigator.share({ title: adventure.title, text: summary || "", url });
     } catch {
       /* user cancelled */
     }
@@ -476,10 +635,11 @@ async function shareAdventure(adventure) {
   }
   try {
     await navigator.clipboard.writeText(url);
-    toast("Link copied!");
+    toast(t("linkCopied"));
   } catch {
-    prompt("Copy this link:", url);
+    prompt(t("copyLinkPrompt"), url);
   }
 }
 
+updateLangSwitch();
 render();

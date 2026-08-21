@@ -124,7 +124,7 @@ async function handleApi(request, env, url) {
     const denied = requireAdmin(request, env);
     if (denied) return denied;
     const body = await request.json().catch(() => ({}));
-    const fields = ["title", "destination", "date_label", "status", "summary", "source_url"];
+    const fields = ["title", "destination", "date_label", "status", "summary", "summary_lv", "summary_nl", "source_url"];
     const updates = fields.filter((f) => body[f] !== undefined);
     if (updates.length === 0) return json({ error: "nothing to update" }, { status: 400 });
 
@@ -187,7 +187,8 @@ async function handleApi(request, env, url) {
     const body = await request.json().catch(() => ({}));
     if (typeof body.body !== "string") return json({ error: "body required" }, { status: 400 });
 
-    await env.DB.prepare("UPDATE sections SET body = ? WHERE id = ?").bind(body.body, parts[1]).run();
+    const column = { en: "body", lv: "body_lv", nl: "body_nl" }[body.lang] || "body";
+    await env.DB.prepare(`UPDATE sections SET ${column} = ? WHERE id = ?`).bind(body.body, parts[1]).run();
     return json({ ok: true });
   }
 
