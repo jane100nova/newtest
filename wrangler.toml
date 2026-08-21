@@ -10,7 +10,7 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "wayfarer"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "fa4005d6-939d-42ed-8320-5f6cfe65c9a4"
 
 [[r2_buckets]]
 binding = "PHOTOS"
