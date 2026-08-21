@@ -29,6 +29,8 @@ const ICONS = {
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
   externalLink: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  trash: '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
   grip: '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>',
 };
 
@@ -55,6 +57,14 @@ const STRINGS = {
     commentPlaceholder: "Say something…",
     postComment: "Post comment",
     noComments: "No comments yet — be the first.",
+    bucketList: "Bucket list",
+    bucketListIntro: "Places I haven't planned yet — but keep coming back to.",
+    bucketEmpty: "Nothing on the list yet.",
+    addPlace: "Add a place", editPlace: "Edit place",
+    fieldTempt: "What tempts me", temptHint: "Three short lines works best.",
+    temptPlaceholder: "Why this place keeps pulling at you…",
+    deletePlaceConfirm: "Remove this place from the bucket list?",
+    deleted: "Removed", delete: "Delete", addPhoto: "Add photo",
     newAdventure: "New adventure", editAdventure: "Edit adventure",
     saveChanges: "Save changes", orderSaved: "Order saved", dragHint: "Drag the handle to reorder",
     fieldTitle: "Title", fieldDestination: "Destination", fieldWhen: "When",
@@ -94,6 +104,14 @@ const STRINGS = {
     commentPlaceholder: "Uzraksti kaut ko…",
     postComment: "Publicēt komentāru",
     noComments: "Vēl nav komentāru — esi pirmais.",
+    bucketList: "Sapņu saraksts",
+    bucketListIntro: "Vietas, ko vēl neesmu ieplānojis — bet pie kurām domās atgriežos.",
+    bucketEmpty: "Sarakstā vēl nekā nav.",
+    addPlace: "Pievienot vietu", editPlace: "Rediģēt vietu",
+    fieldTempt: "Kas mani vilina", temptHint: "Vislabāk der trīs īsas rindas.",
+    temptPlaceholder: "Kāpēc šī vieta tevi sauc…",
+    deletePlaceConfirm: "Noņemt šo vietu no saraksta?",
+    deleted: "Noņemts", delete: "Dzēst", addPhoto: "Pievienot foto",
     newAdventure: "Jauns piedzīvojums", editAdventure: "Rediģēt piedzīvojumu",
     saveChanges: "Saglabāt izmaiņas", orderSaved: "Secība saglabāta", dragHint: "Velc rokturi, lai mainītu secību",
     fieldTitle: "Nosaukums", fieldDestination: "Galamērķis", fieldWhen: "Kad",
@@ -133,6 +151,14 @@ const STRINGS = {
     commentPlaceholder: "Schrijf iets…",
     postComment: "Reactie plaatsen",
     noComments: "Nog geen reacties — wees de eerste.",
+    bucketList: "Verlanglijst",
+    bucketListIntro: "Plekken die ik nog niet gepland heb — maar waar ik steeds aan denk.",
+    bucketEmpty: "Nog niets op de lijst.",
+    addPlace: "Plek toevoegen", editPlace: "Plek bewerken",
+    fieldTempt: "Wat me trekt", temptHint: "Drie korte regels werkt het best.",
+    temptPlaceholder: "Waarom deze plek blijft trekken…",
+    deletePlaceConfirm: "Deze plek van de lijst verwijderen?",
+    deleted: "Verwijderd", delete: "Verwijderen", addPhoto: "Foto toevoegen",
     newAdventure: "Nieuw avontuur", editAdventure: "Avontuur bewerken",
     saveChanges: "Wijzigingen opslaan", orderSaved: "Volgorde opgeslagen", dragHint: "Sleep de greep om te herordenen",
     fieldTitle: "Titel", fieldDestination: "Bestemming", fieldWhen: "Wanneer",
@@ -361,6 +387,9 @@ $adminToggle.addEventListener("click", async () => {
 // ---------- home / feed ----------
 
 async function renderHome() {
+  // Bucket-list actions re-render the home view, so clear any existing FAB
+  // first — otherwise a new one is appended on every refresh.
+  document.querySelectorAll(".fab").forEach((f) => f.remove());
   $app.innerHTML = `<p class="empty-state">${t("loadingAdventures")}</p>`;
   let adventures = [];
   try {
@@ -371,6 +400,13 @@ async function renderHome() {
   }
 
   const admin = isAdmin();
+  let bucketlist = [];
+  try {
+    ({ bucketlist } = await api("bucketlist"));
+  } catch {
+    bucketlist = [];
+  }
+
   const cards = adventures.length
     ? `<div class="adventure-list" id="adventure-list">${adventures.map((a) => adventureCardHtml(a, admin)).join("")}</div>`
     : `<div class="empty-state"><h2>${t("noAdventuresTitle")}</h2><p>${t("noAdventuresBody")}</p></div>`;
@@ -380,7 +416,10 @@ async function renderHome() {
     <p class="page-subtitle">${t("tagline")}</p>
     ${admin && adventures.length > 1 ? `<p class="drag-hint">${icon("grip", 14)}<span>${t("dragHint")}</span></p>` : ""}
     ${cards}
+    ${bucketListHtml(bucketlist, admin)}
   `;
+
+  wireBucketList(bucketlist, admin);
 
   if (admin) {
     const list = document.getElementById("adventure-list");
@@ -393,6 +432,144 @@ async function renderHome() {
     fab.addEventListener("click", () => openAdventureModal());
     document.body.appendChild(fab);
   }
+}
+
+function bucketListHtml(items, admin) {
+  const cards = items.length
+    ? items.map((it) => bucketCardHtml(it, admin)).join("")
+    : `<p class="bucket-empty">${t("bucketEmpty")}</p>`;
+
+  return `
+    <section class="bucket-section">
+      <div class="bucket-head">
+        <h2>${icon("compass", 20)}<span>${t("bucketList")}</span></h2>
+        ${admin ? `<button class="btn btn-outline btn-small" id="add-place" type="button">${icon("plus", 15)}<span>${t("addPlace")}</span></button>` : ""}
+      </div>
+      <p class="bucket-intro">${t("bucketListIntro")}</p>
+      <div class="bucket-grid">${cards}</div>
+    </section>
+  `;
+}
+
+function bucketCardHtml(it, admin) {
+  const tempt = localized(it, "tempt") || "";
+  const img = it.cover_key
+    ? `<img src="/photos/${encodeURIComponent(it.cover_key)}" alt="" loading="lazy" />`
+    : `<div class="bucket-placeholder">${icon("mountain", 26)}</div>`;
+
+  return `
+    <article class="bucket-card" data-bucket-id="${it.id}">
+      <div class="bucket-photo">
+        ${img}
+        ${admin ? `<button class="bucket-photo-btn" data-bucket-photo type="button" aria-label="${t("addPhoto")}">${icon("camera", 15)}</button>` : ""}
+      </div>
+      <div class="bucket-body">
+        <h3>${escapeHtml(it.destination)}</h3>
+        <p class="bucket-tempt">${escapeHtml(tempt)}</p>
+        ${admin ? `<div class="bucket-actions">
+          <button class="edit-btn" data-bucket-edit type="button">${icon("pencil", 14)}<span>${t("edit")}</span></button>
+          <button class="edit-btn danger" data-bucket-delete type="button" aria-label="${t("delete")}">${icon("trash", 14)}</button>
+        </div>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+function wireBucketList(items, admin) {
+  if (!admin) return;
+  const byId = new Map(items.map((it) => [String(it.id), it]));
+
+  document.getElementById("add-place")?.addEventListener("click", () => openPlaceModal());
+
+  document.querySelectorAll(".bucket-card").forEach((card) => {
+    const id = card.dataset.bucketId;
+    const item = byId.get(id);
+
+    card.querySelector("[data-bucket-edit]")?.addEventListener("click", () => openPlaceModal(item));
+
+    card.querySelector("[data-bucket-photo]")?.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.addEventListener("change", async () => {
+        const original = input.files[0];
+        if (!original) return;
+        toast(t("uploading"));
+        const file = await downscaleImage(original, 1200);
+        const fd = new FormData();
+        fd.append("file", file);
+        try {
+          await api(`bucketlist/${id}/photo`, { method: "POST", body: fd });
+          toast(t("photoUploaded"));
+          renderHome();
+        } catch (err) {
+          toast(err.message);
+        }
+      });
+      input.click();
+    });
+
+    card.querySelector("[data-bucket-delete]")?.addEventListener("click", async () => {
+      if (!confirm(t("deletePlaceConfirm"))) return;
+      try {
+        await api(`bucketlist/${id}`, { method: "DELETE" });
+        toast(t("deleted"));
+        renderHome();
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  });
+}
+
+// Add or edit one bucket-list place. Like the adventure form, the "what
+// tempts me" field targets the column for the language you're viewing.
+function openPlaceModal(item = null) {
+  const editing = !!item;
+  const temptField = editing && lang !== "en" ? `tempt_${lang}` : "tempt";
+  const temptValue = editing ? (item[temptField] || "") : "";
+  const langNote = temptField === "tempt" ? "" : ` (${lang.toUpperCase()})`;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${editing ? t("editPlace") : t("addPlace")}</h2>
+      <form id="place-form">
+        <div class="field"><label>${t("fieldDestination")}</label>
+          <input name="destination" required maxlength="120" placeholder="${t("titlePlaceholder")}" value="${escapeHtml(editing ? item.destination : "")}" /></div>
+        <div class="field">
+          <label>${t("fieldTempt")}${langNote}</label>
+          <textarea name="${temptField}" rows="3" maxlength="600" placeholder="${t("temptPlaceholder")}">${escapeHtml(temptValue)}</textarea>
+          <p class="edit-hint">${t("temptHint")}</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline btn-block" id="cancel-modal">${t("cancel")}</button>
+          <button type="submit" class="btn btn-block">${editing ? t("saveChanges") : t("create")}</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector("#cancel-modal").addEventListener("click", () => overlay.remove());
+
+  overlay.querySelector("#place-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(e.target).entries());
+    try {
+      if (editing) {
+        await api(`bucketlist/${item.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      } else {
+        await api("bucketlist", { method: "POST", body: JSON.stringify(payload) });
+      }
+      overlay.remove();
+      toast(t("savedToast"));
+      renderHome();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
 }
 
 // Drag-to-reorder for the feed. Uses pointer events (not HTML5 drag-and-drop,

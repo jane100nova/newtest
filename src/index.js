@@ -285,6 +285,117 @@ async function handleApi(request, env, url) {
     return json({ ok: true });
   }
 
+  // ---- Bucket list ----
+
+  // GET /api/bucketlist
+  if (method === "GET" && parts.length === 1 && parts[0] === "bucketlist") {
+    try {
+      const { results } = await env.DB.prepare(
+        "SELECT * FROM bucketlist ORDER BY sort_order ASC, created_at DESC"
+      ).all();
+      return json({ bucketlist: results });
+    } catch {
+      // Table arrives in migration 0005; report empty rather than failing
+      // the whole home page before it has been run.
+      return json({ bucketlist: [] });
+    }
+  }
+
+  // POST /api/bucketlist  (admin)
+  if (method === "POST" && parts.length === 1 && parts[0] === "bucketlist") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    const body = await request.json().catch(() => ({}));
+    const destination = (body.destination || "").trim().slice(0, 120);
+    if (!destination) return json({ error: "destination required" }, { status: 400 });
+
+    const minOrder = await env.DB.prepare("SELECT MIN(sort_order) AS m FROM bucketlist").first();
+    const result = await env.DB.prepare(
+      "INSERT INTO bucketlist (destination, tempt, sort_order) VALUES (?, ?, ?)"
+    )
+      .bind(destination, (body.tempt || "").slice(0, 600), (minOrder?.m ?? 0) - 1)
+      .run();
+
+    const item = await env.DB.prepare("SELECT * FROM bucketlist WHERE id = ?")
+      .bind(result.meta.last_row_id)
+      .first();
+    return json({ item }, { status: 201 });
+  }
+
+  // PATCH /api/bucketlist/:id  (admin)
+  if (method === "PATCH" && parts.length === 2 && parts[0] === "bucketlist") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    const body = await request.json().catch(() => ({}));
+    const fields = ["destination", "tempt", "tempt_lv", "tempt_nl"];
+    const updates = fields.filter((f) => body[f] !== undefined);
+    if (!updates.length) return json({ error: "nothing to update" }, { status: 400 });
+
+    await env.DB.prepare(
+      `UPDATE bucketlist SET ${updates.map((f) => `${f} = ?`).join(", ")} WHERE id = ?`
+    )
+      .bind(...updates.map((f) => String(body[f]).slice(0, 600)), parts[1])
+      .run();
+
+    return json({ ok: true });
+  }
+
+  // DELETE /api/bucketlist/:id  (admin)
+  if (method === "DELETE" && parts.length === 2 && parts[0] === "bucketlist") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const item = await env.DB.prepare("SELECT * FROM bucketlist WHERE id = ?").bind(parts[1]).first();
+    if (!item) return json({ error: "not found" }, { status: 404 });
+
+    if (item.cover_key) await env.PHOTOS.delete(item.cover_key);
+    await env.DB.prepare("DELETE FROM bucketlist WHERE id = ?").bind(parts[1]).run();
+    return json({ ok: true });
+  }
+
+  // POST /api/bucketlist/reorder  (admin) — body: { ids: [...] } in display order
+  if (method === "POST" && parts.length === 2 && parts[0] === "bucketlist" && parts[1] === "reorder") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    const body = await request.json().catch(() => ({}));
+    const ids = Array.isArray(body.ids) ? body.ids : null;
+    if (!ids || !ids.length) return json({ error: "ids array required" }, { status: 400 });
+    if (ids.length > 500) return json({ error: "too many ids" }, { status: 400 });
+
+    await env.DB.batch(
+      ids.map((id, i) =>
+        env.DB.prepare("UPDATE bucketlist SET sort_order = ? WHERE id = ?").bind(i, Number(id))
+      )
+    );
+    return json({ ok: true });
+  }
+
+  // POST /api/bucketlist/:id/photo  (admin, multipart/form-data: file)
+  if (method === "POST" && parts.length === 3 && parts[0] === "bucketlist" && parts[2] === "photo") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const item = await env.DB.prepare("SELECT * FROM bucketlist WHERE id = ?").bind(parts[1]).first();
+    if (!item) return json({ error: "not found" }, { status: 404 });
+
+    const form = await request.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!file || typeof file === "string") return json({ error: "file required" }, { status: 400 });
+    if (!file.type?.startsWith("image/")) return json({ error: "only images are allowed" }, { status: 400 });
+    if (file.size > 10 * 1024 * 1024) return json({ error: "image too large (10MB max)" }, { status: 400 });
+
+    const ext = (file.name?.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const key = `bucketlist/${parts[1]}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+
+    await env.PHOTOS.put(key, file.stream(), { httpMetadata: { contentType: file.type } });
+
+    // Replacing a picture shouldn't leave the old object behind in R2.
+    if (item.cover_key) await env.PHOTOS.delete(item.cover_key);
+    await env.DB.prepare("UPDATE bucketlist SET cover_key = ? WHERE id = ?").bind(key, parts[1]).run();
+
+    return json({ cover_key: key }, { status: 201 });
+  }
+
   // POST /api/admin/verify
   if (method === "POST" && parts.length === 2 && parts[0] === "admin" && parts[1] === "verify") {
     // `configured` distinguishes "no ADMIN_KEY secret bound to this Worker"
