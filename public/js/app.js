@@ -6,6 +6,7 @@ const $langSwitch = document.getElementById("lang-switch");
 const ADMIN_KEY_STORAGE = "wa_admin_key";
 const LANG_STORAGE = "wa_lang";
 const REACTION_EMOJIS = ["🔥", "😍", "🥾", "🎉"];
+const POST_SECTIONS = new Set(["prepare", "experience"]);
 const SECTION_META = {
   prepare: { icon: "backpack" },
   plan: { icon: "map" },
@@ -87,7 +88,13 @@ const STRINGS = {
     noPasscodeSet: "No passcode is set on the server yet.",
     wrongPasscode: "Wrong passcode", adminOn: "Admin mode on", loggedOut: "Logged out",
     couldntVerify: "Couldn't verify — try again",
-    captionPrompt: "Caption (optional):",
+    captionPrompt: "One sentence about this photo:",
+    fieldDepart: "Departure date", departHint: "Sets the countdown on the Preparation tab.",
+    toDeparture: "to departure", dayOne: "day", dayMany: "days",
+    departureDay: "Departure day!",
+    setDepartureHint: "Add a departure date to show a countdown here.",
+    addTrainingPhoto: "Add a training photo", addUpdate: "Add an update",
+    deletePhotoConfirm: "Delete this photo?",
     savedToast: "Saved", photoUploaded: "Photo uploaded", uploading: "Uploading…",
     addCover: "Add cover photo", changeCover: "Change cover",
     linkCopied: "Link copied!", copyLinkPrompt: "Copy this link:",
@@ -136,7 +143,13 @@ const STRINGS = {
     noPasscodeSet: "Serverī vēl nav iestatīta parole.",
     wrongPasscode: "Nepareiza parole", adminOn: "Administratora režīms ieslēgts", loggedOut: "Izgājis",
     couldntVerify: "Neizdevās pārbaudīt — mēģini vēlreiz",
-    captionPrompt: "Paraksts (nav obligāts):",
+    captionPrompt: "Viens teikums par šo foto:",
+    fieldDepart: "Izbraukšanas datums", departHint: "Iestata atskaiti sagatavošanās cilnē.",
+    toDeparture: "līdz izbraukšanai", dayOne: "diena", dayMany: "dienas",
+    departureDay: "Izbraukšanas diena!",
+    setDepartureHint: "Pievieno izbraukšanas datumu, lai šeit rādītu atskaiti.",
+    addTrainingPhoto: "Pievienot treniņa foto", addUpdate: "Pievienot jaunumu",
+    deletePhotoConfirm: "Dzēst šo foto?",
     savedToast: "Saglabāts", photoUploaded: "Foto augšupielādēts", uploading: "Augšupielādē…",
     addCover: "Pievienot vāka foto", changeCover: "Mainīt vāka foto",
     linkCopied: "Saite nokopēta!", copyLinkPrompt: "Nokopē šo saiti:",
@@ -185,7 +198,13 @@ const STRINGS = {
     noPasscodeSet: "Er is nog geen code ingesteld op de server.",
     wrongPasscode: "Onjuiste code", adminOn: "Beheerdersmodus aan", loggedOut: "Uitgelogd",
     couldntVerify: "Kon niet verifiëren — probeer opnieuw",
-    captionPrompt: "Bijschrift (optioneel):",
+    captionPrompt: "Eén zin over deze foto:",
+    fieldDepart: "Vertrekdatum", departHint: "Stelt de aftelling op het tabblad Voorbereiding in.",
+    toDeparture: "tot vertrek", dayOne: "dag", dayMany: "dagen",
+    departureDay: "Vertrekdag!",
+    setDepartureHint: "Voeg een vertrekdatum toe voor een aftelling hier.",
+    addTrainingPhoto: "Trainingsfoto toevoegen", addUpdate: "Update toevoegen",
+    deletePhotoConfirm: "Deze foto verwijderen?",
     savedToast: "Opgeslagen", photoUploaded: "Foto geüpload", uploading: "Uploaden…",
     addCover: "Omslagfoto toevoegen", changeCover: "Omslagfoto wijzigen",
     linkCopied: "Link gekopieerd!", copyLinkPrompt: "Kopieer deze link:",
@@ -302,6 +321,34 @@ function relativeTime(iso) {
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d ago`;
   return new Date(then).toLocaleDateString();
+}
+
+// Whole calendar days from today to the departure date, in the viewer's own
+// timezone — so "tomorrow" reads as 1, never as 0 from a fractional diff.
+function daysToDeparture(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "").trim());
+  if (!m) return null;
+  const [, y, mo, d] = m.map(Number);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((new Date(y, mo - 1, d) - today) / 86400000);
+}
+
+// Latvian takes the singular for counts ending in 1, except 11.
+function daysWord(n) {
+  const one = lang === "lv" ? n % 10 === 1 && n % 100 !== 11 : n === 1;
+  return one ? t("dayOne") : t("dayMany");
+}
+
+function formatDepartDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "").trim());
+  if (!m) return "";
+  const [, y, mo, d] = m.map(Number);
+  try {
+    return new Date(y, mo - 1, d).toLocaleDateString(lang, { day: "numeric", month: "long", year: "numeric" });
+  } catch {
+    return iso;
+  }
 }
 
 function getAdminKey() {
@@ -715,6 +762,9 @@ function openAdventureModal(adventure = null) {
           <input name="destination" placeholder="${t("titlePlaceholder")}" value="${escapeHtml(editing ? adventure.destination || "" : "")}" /></div>
         <div class="field"><label>${t("fieldWhen")}</label>
           <input name="date_label" placeholder="${t("whenPlaceholder")}" value="${escapeHtml(editing ? adventure.date_label || "" : "")}" /></div>
+        <div class="field"><label>${t("fieldDepart")}</label>
+          <input type="date" name="depart_on" value="${escapeHtml(editing ? adventure.depart_on || "" : "")}" />
+          <p class="edit-hint">${t("departHint")}</p></div>
         <div class="field"><label>${t("fieldStatus")}</label>
           <select name="status">
             <option value="upcoming"${editing && adventure.status !== "completed" ? " selected" : ""}>${t("upcoming")}</option>
@@ -898,11 +948,11 @@ function renderActiveSection(adventure, admin) {
     el.innerHTML = "";
     return;
   }
-  el.innerHTML = sectionHtml(section, admin);
+  el.innerHTML = sectionHtml(section, admin, adventure);
   wireSection(adventure.slug, section, admin);
 }
 
-function sectionHtml(s, admin) {
+function sectionHtml(s, admin, adventure) {
   const meta = SECTION_META[s.type] || { icon: "map" };
   const title = t("sectionTitles")[s.type] || s.title;
   const body = localized(s, "body");
@@ -910,8 +960,16 @@ function sectionHtml(s, admin) {
     ? `<div class="section-body" data-view>${mdToHtml(body)}</div>`
     : `<div class="section-body empty" data-view>${admin ? t("nothingHereAdmin") : t("nothingHerePublic")}</div>`;
 
-  const photos = s.photos.map((p) => `<img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />`).join("");
-  const addTile = admin ? `<div class="photo-add-tile" data-add-photo="${s.type}">${icon("plus", 22)}</div>` : "";
+  // Preparation and Live updates read as a feed of photo posts; Plan keeps the
+  // compact strip, since its images are reference material, not a narrative.
+  let media;
+  if (POST_SECTIONS.has(s.type)) {
+    media = postFeedHtml(s, admin);
+  } else {
+    const photos = s.photos.map((p) => `<img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />`).join("");
+    const addTile = admin ? `<div class="photo-add-tile" data-add-photo="${s.type}">${icon("plus", 22)}</div>` : "";
+    media = (s.photos.length || admin) ? `<div class="photo-strip">${photos}${addTile}</div>` : "";
+  }
 
   return `
     <div class="section-card" data-section="${s.type}" data-section-id="${s.id}">
@@ -919,9 +977,64 @@ function sectionHtml(s, admin) {
         <h3 class="sr-title">${icon(meta.icon, 18)}<span>${escapeHtml(title)}</span></h3>
         <button class="edit-btn" data-edit>${icon("pencil", 15)}<span>${t("edit")}</span></button>
       </div>` : ""}
+      ${s.type === "prepare" ? countdownHtml(adventure, admin) : ""}
       ${bodyHtml}
-      ${(s.photos.length || admin) ? `<div class="photo-strip">${photos}${addTile}</div>` : ""}
+      ${media}
     </div>
+  `;
+}
+
+// Counts down to departure on the Preparation tab. Hidden once the trip has
+// started — from then on Live updates is the tab that matters.
+function countdownHtml(adventure, admin) {
+  const days = daysToDeparture(adventure?.depart_on);
+  if (days === null) {
+    // Only nudge the owner; a visitor shouldn't see a missing-data prompt.
+    return admin ? `<p class="countdown-hint">${icon("calendar", 14)}<span>${t("setDepartureHint")}</span></p>` : "";
+  }
+  if (days < 0) return "";
+
+  const face = days === 0
+    ? `<span class="countdown-today">${escapeHtml(t("departureDay"))}</span>`
+    : `<span class="countdown-num">${days}</span><span class="countdown-label">${escapeHtml(daysWord(days))} ${escapeHtml(t("toDeparture"))}</span>`;
+
+  return `
+    <div class="countdown${days === 0 ? " today" : ""}">
+      ${face}
+      <span class="countdown-date">${escapeHtml(formatDepartDate(adventure.depart_on))}</span>
+    </div>
+  `;
+}
+
+// A photo + one sentence, newest first.
+function postFeedHtml(s, admin) {
+  if (!s.photos.length && !admin) return "";
+  const addLabel = s.type === "prepare" ? t("addTrainingPhoto") : t("addUpdate");
+  const posts = [...s.photos].reverse(); // API returns oldest-first
+
+  return `
+    <div class="post-feed">
+      ${admin ? `<button class="btn btn-outline btn-block add-post" data-add-photo="${s.type}" type="button">${icon("camera", 16)}<span>${escapeHtml(addLabel)}</span></button>` : ""}
+      ${posts.map((p) => postHtml(p, admin)).join("")}
+    </div>
+  `;
+}
+
+function postHtml(p, admin) {
+  return `
+    <article class="post" data-photo-id="${p.id}">
+      <img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />
+      <div class="post-body">
+        ${p.caption ? `<p class="post-caption">${escapeHtml(p.caption)}</p>` : ""}
+        <div class="post-foot">
+          <span class="post-time">${escapeHtml(relativeTime(p.created_at))}</span>
+          ${admin ? `<span class="post-actions">
+            <button class="edit-btn" data-post-edit type="button">${icon("pencil", 13)}<span>${t("edit")}</span></button>
+            <button class="edit-btn danger" data-post-delete type="button" aria-label="${t("delete")}">${icon("trash", 13)}</button>
+          </span>` : ""}
+        </div>
+      </div>
+    </article>
   `;
 }
 
@@ -1019,6 +1132,36 @@ function wireSection(slug, section, admin) {
 
     card.querySelector("[data-add-photo]")?.addEventListener("click", () => {
       pickAndUploadPhoto(slug, section.type, { askCaption: true });
+    });
+
+    const photoById = new Map(section.photos.map((p) => [String(p.id), p]));
+
+    card.querySelectorAll("[data-post-edit]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.closest(".post").dataset.photoId;
+        const next = prompt(t("captionPrompt"), photoById.get(id)?.caption || "");
+        if (next === null) return; // cancelled, as distinct from cleared
+        try {
+          await api(`photos/${id}`, { method: "PATCH", body: JSON.stringify({ caption: next }) });
+          toast(t("savedToast"));
+          renderAdventure(slug);
+        } catch (err) {
+          toast(err.message);
+        }
+      });
+    });
+
+    card.querySelectorAll("[data-post-delete]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm(t("deletePhotoConfirm"))) return;
+        try {
+          await api(`photos/${btn.closest(".post").dataset.photoId}`, { method: "DELETE" });
+          toast(t("deleted"));
+          renderAdventure(slug);
+        } catch (err) {
+          toast(err.message);
+        }
+      });
     });
   }
 }

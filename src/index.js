@@ -34,6 +34,13 @@ function slugify(text) {
     .slice(0, 60) || crypto.randomUUID().slice(0, 8);
 }
 
+// Departure dates come from an <input type="date">, i.e. YYYY-MM-DD. Anything
+// else is dropped rather than stored, so the countdown can trust the column.
+function cleanDate(value) {
+  const s = String(value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
+}
+
 async function getAdventureBySlug(env, slug) {
   const adventure = await env.DB.prepare("SELECT * FROM adventures WHERE slug = ?").bind(slug).first();
   if (!adventure) return null;
@@ -69,7 +76,7 @@ async function handleApi(request, env, url) {
   // GET /api/adventures
   if (method === "GET" && parts.length === 1 && parts[0] === "adventures") {
     const columns = `id, slug, title, destination, date_label, status,
-                     summary, summary_lv, summary_nl, cover_key, created_at`;
+                     summary, summary_lv, summary_nl, cover_key, created_at, depart_on`;
     let results;
     try {
       ({ results } = await env.DB.prepare(
@@ -104,22 +111,23 @@ async function handleApi(request, env, url) {
       body.status === "completed" ? "completed" : "upcoming",
       body.summary || "",
       body.source_url || "",
+      cleanDate(body.depart_on) || null,
     ];
 
     let result;
     try {
       const minOrder = await env.DB.prepare("SELECT MIN(sort_order) AS m FROM adventures").first();
       result = await env.DB.prepare(
-        `INSERT INTO adventures (slug, title, destination, date_label, status, summary, source_url, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO adventures (slug, title, destination, date_label, status, summary, source_url, depart_on, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(...common, (minOrder?.m ?? 0) - 1)
         .run();
     } catch {
       // Pre-migration fallback (see the feed query above).
       result = await env.DB.prepare(
-        `INSERT INTO adventures (slug, title, destination, date_label, status, summary, source_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO adventures (slug, title, destination, date_label, status, summary, source_url, depart_on)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(...common)
         .run();
@@ -168,14 +176,14 @@ async function handleApi(request, env, url) {
     const denied = requireAdmin(request, env);
     if (denied) return denied;
     const body = await request.json().catch(() => ({}));
-    const fields = ["title", "destination", "date_label", "status", "summary", "summary_lv", "summary_nl", "source_url"];
+    const fields = ["title", "destination", "date_label", "status", "summary", "summary_lv", "summary_nl", "source_url", "depart_on"];
     const updates = fields.filter((f) => body[f] !== undefined);
     if (updates.length === 0) return json({ error: "nothing to update" }, { status: 400 });
 
     await env.DB.prepare(
       `UPDATE adventures SET ${updates.map((f) => `${f} = ?`).join(", ")} WHERE slug = ?`
     )
-      .bind(...updates.map((f) => body[f]), parts[1])
+      .bind(...updates.map((f) => (f === "depart_on" ? cleanDate(body[f]) || null : body[f])), parts[1])
       .run();
 
     return json({ ok: true });
@@ -270,6 +278,19 @@ async function handleApi(request, env, url) {
 
     const photo = await env.DB.prepare("SELECT * FROM photos WHERE id = ?").bind(result.meta.last_row_id).first();
     return json({ photo }, { status: 201 });
+  }
+
+  // PATCH /api/photos/:id  (admin) — the caption, so a typo isn't permanent
+  if (method === "PATCH" && parts.length === 2 && parts[0] === "photos") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    const body = await request.json().catch(() => ({}));
+    if (typeof body.caption !== "string") return json({ error: "caption required" }, { status: 400 });
+
+    await env.DB.prepare("UPDATE photos SET caption = ? WHERE id = ?")
+      .bind(body.caption.trim().slice(0, 200), parts[1])
+      .run();
+    return json({ ok: true });
   }
 
   // DELETE /api/photos/:id  (admin)

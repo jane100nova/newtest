@@ -1107,3 +1107,115 @@ img {
 .bucket-place .icon {
   opacity: 0.8;
 }
+
+/* ---------- Countdown to departure ---------- */
+.countdown {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 15px 17px;
+  margin-bottom: 16px;
+}
+
+.countdown-num {
+  font-family: var(--font-display);
+  font-size: 2.3rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.countdown-label {
+  font-weight: 600;
+  font-size: 0.98rem;
+}
+
+.countdown-today {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* Pushed to the far end, and onto its own line when the row wraps. */
+.countdown-date {
+  margin-left: auto;
+  font-size: 0.82rem;
+  opacity: 0.82;
+}
+
+.countdown.today {
+  background: linear-gradient(135deg, var(--color-accent), #b8542a);
+}
+
+.countdown-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+/* ---------- Photo posts (Preparation / Live updates) ---------- */
+.post-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.add-post {
+  margin: 0;
+}
+
+.post {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 8px 24px -18px rgba(38, 30, 15, 0.4);
+}
+
+/* Natural aspect ratio: a training photo shouldn't be cropped to fit a grid. */
+.post img {
+  width: 100%;
+  height: auto;
+  background: var(--color-surface-2);
+}
+
+.post-body {
+  padding: 12px 15px 13px;
+}
+
+.post-caption {
+  margin: 0 0 9px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.post-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.post-time {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.post-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.post-actions .edit-btn {
+  padding: 4px 9px;
+  font-size: 0.74rem;
+}

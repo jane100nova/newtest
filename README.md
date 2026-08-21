@@ -4,6 +4,12 @@ A mobile-first adventure journal. Each adventure has three tabs —
 **Preparation**, **Plan**, **Live updates** — plus photos, comments,
 reactions, and a share link for friends.
 
+**Preparation** counts down to the departure date ("21 days to
+departure") and holds a feed of training photos, each a full-width
+picture with a one-sentence caption. **Live updates** is the same feed,
+for posting a picture and a line from the trip itself. **Plan** keeps a
+compact thumbnail strip, since its images are reference material.
+
 The feed is split into **Upcoming adventures** and **Past adventures**,
 by each adventure's status. Below both sits a **bucket list** of places
 that aren't planned trips yet — a name, a destination, a picture and
@@ -59,6 +65,7 @@ You can do this either in the **dashboard** or with **wrangler CLI**
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0004_tabs_and_ordering.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0005_bucketlist.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0006_bucketlist_title.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0007_departure_date.sql
    ```
    They can also be pasted into the D1 **Console** tab in the dashboard.
 
