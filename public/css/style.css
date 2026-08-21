@@ -1152,13 +1152,28 @@ img {
   background: linear-gradient(135deg, var(--color-accent), #b8542a);
 }
 
+/* Actionable: opens the adventure form, where the date is set. */
 .countdown-hint {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  width: 100%;
   margin: 0 0 14px;
-  font-size: 0.8rem;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  text-align: left;
   color: var(--color-muted);
+  background: none;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.countdown-hint:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-surface-2);
 }
 
 /* ---------- Photo posts (Preparation / Live updates) ---------- */

@@ -950,6 +950,9 @@ function renderActiveSection(adventure, admin) {
   }
   el.innerHTML = sectionHtml(section, admin, adventure);
   wireSection(adventure.slug, section, admin);
+  // Setting the departure date lives in the adventure form; make the empty
+  // countdown a way in, rather than a dead end telling you to go find it.
+  el.querySelector("[data-set-depart]")?.addEventListener("click", () => openAdventureModal(adventure));
 }
 
 function sectionHtml(s, admin, adventure) {
@@ -990,7 +993,7 @@ function countdownHtml(adventure, admin) {
   const days = daysToDeparture(adventure?.depart_on);
   if (days === null) {
     // Only nudge the owner; a visitor shouldn't see a missing-data prompt.
-    return admin ? `<p class="countdown-hint">${icon("calendar", 14)}<span>${t("setDepartureHint")}</span></p>` : "";
+    return admin ? `<button class="countdown-hint" data-set-depart type="button">${icon("calendar", 14)}<span>${t("setDepartureHint")}</span></button>` : "";
   }
   if (days < 0) return "";
 
