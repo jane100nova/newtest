@@ -45,7 +45,6 @@ function icon(name, size = 18) {
 
 const STRINGS = {
   en: {
-    tagline: "How I prepare, the plan, and how I live it — trip by trip.",
     upcoming: "Upcoming", completed: "Completed",
     upcomingAdventures: "Upcoming adventures", pastAdventures: "Past adventures",
     loadingAdventures: "Loading adventures…",
@@ -95,7 +94,6 @@ const STRINGS = {
     sectionTitles: { prepare: "Preparation", plan: "Plan", experience: "Live updates" },
   },
   lv: {
-    tagline: "Kā es gatavojos, plāns un kā es to piedzīvoju — piedzīvojumu pa piedzīvojumam.",
     upcoming: "Gaidāms", completed: "Pabeigts",
     upcomingAdventures: "Gaidāmie piedzīvojumi", pastAdventures: "Aizvadītie piedzīvojumi",
     loadingAdventures: "Ielādē piedzīvojumus…",
@@ -145,7 +143,6 @@ const STRINGS = {
     sectionTitles: { prepare: "Sagatavošanās", plan: "Plāns", experience: "Jaunumi" },
   },
   nl: {
-    tagline: "Hoe ik me voorbereid, het plan, en hoe ik het beleef — avontuur na avontuur.",
     upcoming: "Aankomend", completed: "Voltooid",
     upcomingAdventures: "Aankomende avonturen", pastAdventures: "Afgelopen avonturen",
     loadingAdventures: "Avonturen laden…",
@@ -430,7 +427,6 @@ async function renderHome() {
 
   $app.innerHTML = `
     <h1 class="page-title">Zane&rsquo;s Adventures</h1>
-    <p class="page-subtitle">${t("tagline")}</p>
     ${admin && adventures.length > 1 ? `<p class="drag-hint">${icon("grip", 14)}<span>${t("dragHint")}</span></p>` : ""}
     ${cards}
     ${bucketListHtml(bucketlist, admin)}
