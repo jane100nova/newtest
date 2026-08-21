@@ -2,10 +2,9 @@
 // D1 (adventures/sections/comments/reactions) and R2 (photos).
 
 const SECTION_DEFAULTS = [
-  { type: "prepare", title: "How I Prepare", sort_order: 1 },
-  { type: "plan", title: "The Plan", sort_order: 2 },
-  { type: "experience", title: "How I Experience It", sort_order: 3 },
-  { type: "reflect", title: "How I Feel Afterwards", sort_order: 4 },
+  { type: "prepare", title: "Preparation", sort_order: 1 },
+  { type: "plan", title: "Plan", sort_order: 2 },
+  { type: "experience", title: "Live updates", sort_order: 3 },
 ];
 
 function json(data, init = {}) {
@@ -69,9 +68,20 @@ async function handleApi(request, env, url) {
 
   // GET /api/adventures
   if (method === "GET" && parts.length === 1 && parts[0] === "adventures") {
-    const { results } = await env.DB.prepare(
-      "SELECT id, slug, title, destination, date_label, status, summary, cover_key, created_at FROM adventures ORDER BY created_at DESC"
-    ).all();
+    const columns = `id, slug, title, destination, date_label, status,
+                     summary, summary_lv, summary_nl, cover_key, created_at`;
+    let results;
+    try {
+      ({ results } = await env.DB.prepare(
+        `SELECT ${columns}, sort_order FROM adventures ORDER BY sort_order ASC, created_at DESC`
+      ).all());
+    } catch {
+      // sort_order is added by migration 0004. Until that has been run, fall
+      // back to newest-first rather than failing the whole feed.
+      ({ results } = await env.DB.prepare(
+        `SELECT ${columns} FROM adventures ORDER BY created_at DESC`
+      ).all());
+    }
     return json({ adventures: results });
   }
 
@@ -86,20 +96,34 @@ async function handleApi(request, env, url) {
     const exists = await env.DB.prepare("SELECT id FROM adventures WHERE slug = ?").bind(slug).first();
     if (exists) return json({ error: "an adventure with that slug already exists" }, { status: 409 });
 
-    const result = await env.DB.prepare(
-      `INSERT INTO adventures (slug, title, destination, date_label, status, summary, source_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(
-        slug,
-        body.title,
-        body.destination || "",
-        body.date_label || "",
-        body.status === "completed" ? "completed" : "upcoming",
-        body.summary || "",
-        body.source_url || ""
+    const common = [
+      slug,
+      body.title,
+      body.destination || "",
+      body.date_label || "",
+      body.status === "completed" ? "completed" : "upcoming",
+      body.summary || "",
+      body.source_url || "",
+    ];
+
+    let result;
+    try {
+      const minOrder = await env.DB.prepare("SELECT MIN(sort_order) AS m FROM adventures").first();
+      result = await env.DB.prepare(
+        `INSERT INTO adventures (slug, title, destination, date_label, status, summary, source_url, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run();
+        .bind(...common, (minOrder?.m ?? 0) - 1)
+        .run();
+    } catch {
+      // Pre-migration fallback (see the feed query above).
+      result = await env.DB.prepare(
+        `INSERT INTO adventures (slug, title, destination, date_label, status, summary, source_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(...common)
+        .run();
+    }
 
     const adventureId = result.meta.last_row_id;
     for (const s of SECTION_DEFAULTS) {
@@ -111,6 +135,25 @@ async function handleApi(request, env, url) {
     }
 
     return json({ slug }, { status: 201 });
+  }
+
+  // POST /api/adventures/reorder  (admin) — body: { slugs: [...] } in display order
+  if (method === "POST" && parts.length === 2 && parts[0] === "adventures" && parts[1] === "reorder") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const body = await request.json().catch(() => ({}));
+    const slugs = Array.isArray(body.slugs) ? body.slugs : null;
+    if (!slugs || !slugs.length) return json({ error: "slugs array required" }, { status: 400 });
+    if (slugs.length > 500) return json({ error: "too many slugs" }, { status: 400 });
+
+    await env.DB.batch(
+      slugs.map((slug, i) =>
+        env.DB.prepare("UPDATE adventures SET sort_order = ? WHERE slug = ?").bind(i, String(slug))
+      )
+    );
+
+    return json({ ok: true });
   }
 
   // GET /api/adventures/:slug

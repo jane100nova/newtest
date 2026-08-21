@@ -316,7 +316,7 @@ img {
 }
 
 .detail-cover {
-  height: 200px;
+  height: 230px;
   border-radius: var(--radius);
   overflow: hidden;
   background: linear-gradient(135deg, #ffb27a, #e26d6d 45%, #4c4066 100%);
@@ -700,7 +700,7 @@ img {
 .cover-upload-btn {
   position: absolute;
   right: 10px;
-  bottom: 10px;
+  top: 10px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -732,4 +732,151 @@ img {
 .back-link .icon,
 .source-link .icon {
   vertical-align: 0;
+}
+
+/* Compact horizontal tabs, sitting on the cover image */
+.cover-tabs {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(20, 18, 14, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.cover-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: rgba(255, 255, 255, 0.82);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.cover-tab span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cover-tab .icon {
+  flex: none;
+}
+
+.cover-tab.active {
+  background: #fff;
+  color: var(--color-primary-dark);
+}
+
+/* Very narrow phones: let the icons carry the meaning for inactive tabs */
+@media (max-width: 380px) {
+  .cover-tab {
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+}
+
+/* Adventure title row with its edit control */
+.detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-title-row h1 {
+  flex: 1;
+}
+
+/* Section card: the tab bar names the section, so the in-card title is
+   secondary and only shown to the admin alongside the edit control. */
+.sr-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  letter-spacing: 0;
+}
+
+.sr-title .icon {
+  color: var(--color-primary);
+}
+
+/* Feed list + drag-to-reorder */
+.adventure-list {
+  display: block;
+}
+
+.adventure-card-wrap {
+  position: relative;
+}
+
+.drag-handle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-muted);
+  cursor: grab;
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.4);
+  /* Required so pointermove fires on touch instead of scrolling the page. */
+  touch-action: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.adventure-card-wrap.dragging {
+  opacity: 0.75;
+  transform: scale(0.985);
+}
+
+.adventure-card-wrap.dragging .adventure-card {
+  box-shadow: 0 18px 40px -14px rgba(38, 30, 15, 0.55);
+}
+
+.adventure-list.reordering {
+  user-select: none;
+}
+
+.adventure-list.reordering .adventure-card {
+  pointer-events: none;
+}
+
+.drag-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin: -8px 0 16px;
 }

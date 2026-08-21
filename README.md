@@ -1,9 +1,10 @@
 # Zane's Adventures
 
-A mobile-first adventure journal. Each adventure has four sections —
-**How I Prepare**, **The Plan**, **How I Experience It**, **How I Feel
-Afterwards** — plus photos, comments, reactions, and a share link for
-friends.
+A mobile-first adventure journal. Each adventure has three tabs —
+**Preparation**, **Plan**, **Live updates** — plus photos, comments,
+reactions, and a share link for friends. Content is available in
+English, Latvian and Dutch, and the feed order is set by hand
+(drag-to-reorder in admin mode) rather than newest-first.
 
 ## Stack
 
@@ -49,7 +50,10 @@ You can do this either in the **dashboard** or with **wrangler CLI**
    ```bash
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0001_init.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0002_seed_andorra.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0003_i18n.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0004_tabs_and_ordering.sql
    ```
+   They can also be pasted into the D1 **Console** tab in the dashboard.
 
 4. **Create the R2 bucket**
    Workers & Pages → **R2** → **Create bucket** → name it `wayfarer-photos`

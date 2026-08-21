@@ -6,12 +6,10 @@ const $langSwitch = document.getElementById("lang-switch");
 const ADMIN_KEY_STORAGE = "wa_admin_key";
 const LANG_STORAGE = "wa_lang";
 const REACTION_EMOJIS = ["🔥", "😍", "🥾", "🎉"];
-const SECTION_TYPES = ["prepare", "plan", "experience", "reflect"];
 const SECTION_META = {
   prepare: { icon: "backpack" },
   plan: { icon: "map" },
   experience: { icon: "sunrise" },
-  reflect: { icon: "heart" },
 };
 
 // ---------- icons ----------
@@ -31,6 +29,7 @@ const ICONS = {
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
   externalLink: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  grip: '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>',
 };
 
 function icon(name, size = 18) {
@@ -56,7 +55,8 @@ const STRINGS = {
     commentPlaceholder: "Say something…",
     postComment: "Post comment",
     noComments: "No comments yet — be the first.",
-    newAdventure: "New adventure",
+    newAdventure: "New adventure", editAdventure: "Edit adventure",
+    saveChanges: "Save changes", orderSaved: "Order saved", dragHint: "Drag the handle to reorder",
     fieldTitle: "Title", fieldDestination: "Destination", fieldWhen: "When",
     fieldStatus: "Status", fieldSummary: "Summary", fieldSource: "Source link (optional)",
     titlePlaceholder: "e.g. Andorra", whenPlaceholder: "e.g. September 2026",
@@ -76,7 +76,7 @@ const STRINGS = {
     savedToast: "Saved", photoUploaded: "Photo uploaded", uploading: "Uploading…",
     addCover: "Add cover photo", changeCover: "Change cover",
     linkCopied: "Link copied!", copyLinkPrompt: "Copy this link:",
-    sectionTitles: { prepare: "How I Prepare", plan: "The Plan", experience: "How I Experience It", reflect: "How I Feel Afterwards" },
+    sectionTitles: { prepare: "Preparation", plan: "Plan", experience: "Live updates" },
   },
   lv: {
     tagline: "Kā es gatavojos, plāns, kā es to piedzīvoju un kā jūtos pēc tam.",
@@ -94,7 +94,8 @@ const STRINGS = {
     commentPlaceholder: "Uzraksti kaut ko…",
     postComment: "Publicēt komentāru",
     noComments: "Vēl nav komentāru — esi pirmais.",
-    newAdventure: "Jauns piedzīvojums",
+    newAdventure: "Jauns piedzīvojums", editAdventure: "Rediģēt piedzīvojumu",
+    saveChanges: "Saglabāt izmaiņas", orderSaved: "Secība saglabāta", dragHint: "Velc rokturi, lai mainītu secību",
     fieldTitle: "Nosaukums", fieldDestination: "Galamērķis", fieldWhen: "Kad",
     fieldStatus: "Statuss", fieldSummary: "Kopsavilkums", fieldSource: "Avota saite (nav obligāta)",
     titlePlaceholder: "piem., Andora", whenPlaceholder: "piem., 2026. gada septembris",
@@ -114,7 +115,7 @@ const STRINGS = {
     savedToast: "Saglabāts", photoUploaded: "Foto augšupielādēts", uploading: "Augšupielādē…",
     addCover: "Pievienot vāka foto", changeCover: "Mainīt vāka foto",
     linkCopied: "Saite nokopēta!", copyLinkPrompt: "Nokopē šo saiti:",
-    sectionTitles: { prepare: "Kā es gatavojos", plan: "Plāns", experience: "Kā es to piedzīvoju", reflect: "Kā jūtos pēc tam" },
+    sectionTitles: { prepare: "Sagatavošanās", plan: "Plāns", experience: "Jaunumi" },
   },
   nl: {
     tagline: "Hoe ik me voorbereid, het plan, hoe ik het beleef, en hoe ik me erna voel.",
@@ -132,7 +133,8 @@ const STRINGS = {
     commentPlaceholder: "Schrijf iets…",
     postComment: "Reactie plaatsen",
     noComments: "Nog geen reacties — wees de eerste.",
-    newAdventure: "Nieuw avontuur",
+    newAdventure: "Nieuw avontuur", editAdventure: "Avontuur bewerken",
+    saveChanges: "Wijzigingen opslaan", orderSaved: "Volgorde opgeslagen", dragHint: "Sleep de greep om te herordenen",
     fieldTitle: "Titel", fieldDestination: "Bestemming", fieldWhen: "Wanneer",
     fieldStatus: "Status", fieldSummary: "Samenvatting", fieldSource: "Bronlink (optioneel)",
     titlePlaceholder: "bijv. Andorra", whenPlaceholder: "bijv. september 2026",
@@ -152,7 +154,7 @@ const STRINGS = {
     savedToast: "Opgeslagen", photoUploaded: "Foto geüpload", uploading: "Uploaden…",
     addCover: "Omslagfoto toevoegen", changeCover: "Omslagfoto wijzigen",
     linkCopied: "Link gekopieerd!", copyLinkPrompt: "Kopieer deze link:",
-    sectionTitles: { prepare: "Hoe ik me voorbereid", plan: "Het Plan", experience: "Hoe ik het beleef", reflect: "Hoe ik me erna voel" },
+    sectionTitles: { prepare: "Voorbereiding", plan: "Plan", experience: "Live updates" },
   },
 };
 
@@ -368,64 +370,144 @@ async function renderHome() {
     return;
   }
 
+  const admin = isAdmin();
   const cards = adventures.length
-    ? adventures.map(adventureCardHtml).join("")
+    ? `<div class="adventure-list" id="adventure-list">${adventures.map((a) => adventureCardHtml(a, admin)).join("")}</div>`
     : `<div class="empty-state"><h2>${t("noAdventuresTitle")}</h2><p>${t("noAdventuresBody")}</p></div>`;
 
   $app.innerHTML = `
     <h1 class="page-title">Zane&rsquo;s Adventures</h1>
     <p class="page-subtitle">${t("tagline")}</p>
+    ${admin && adventures.length > 1 ? `<p class="drag-hint">${icon("grip", 14)}<span>${t("dragHint")}</span></p>` : ""}
     ${cards}
   `;
 
-  if (isAdmin()) {
+  if (admin) {
+    const list = document.getElementById("adventure-list");
+    if (list) enableDragReorder(list);
+
     const fab = document.createElement("button");
     fab.className = "fab";
     fab.innerHTML = icon("plus", 24);
     fab.title = t("newAdventure");
-    fab.addEventListener("click", openNewAdventureModal);
+    fab.addEventListener("click", () => openAdventureModal());
     document.body.appendChild(fab);
   }
 }
 
-function adventureCardHtml(a) {
+// Drag-to-reorder for the feed. Uses pointer events (not HTML5 drag-and-drop,
+// which doesn't fire on touch) and a dedicated handle, so ordinary taps on a
+// card still navigate and vertical scrolling is unaffected.
+function enableDragReorder(list) {
+  let dragging = null;
+  let orderAtStart = null;
+
+  const currentOrder = () =>
+    [...list.querySelectorAll(".adventure-card-wrap")].map((el) => el.dataset.slug);
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    const others = [...list.querySelectorAll(".adventure-card-wrap:not(.dragging)")];
+    const before = others.find((el) => {
+      const box = el.getBoundingClientRect();
+      return e.clientY < box.top + box.height / 2;
+    });
+    if (before) list.insertBefore(dragging, before);
+    else list.appendChild(dragging);
+  };
+
+  const onUp = async () => {
+    if (!dragging) return;
+    dragging.classList.remove("dragging");
+    list.classList.remove("reordering");
+    dragging = null;
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    document.removeEventListener("pointercancel", onUp);
+
+    const slugs = currentOrder();
+    if (slugs.join("|") === orderAtStart) return; // nothing actually moved
+
+    try {
+      await api("adventures/reorder", { method: "POST", body: JSON.stringify({ slugs }) });
+      toast(t("orderSaved"));
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+
+  list.querySelectorAll("[data-drag-handle]").forEach((handle) => {
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      dragging = handle.closest(".adventure-card-wrap");
+      if (!dragging) return;
+      orderAtStart = currentOrder().join("|");
+      dragging.classList.add("dragging");
+      list.classList.add("reordering");
+      document.addEventListener("pointermove", onMove, { passive: false });
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+    });
+  });
+}
+
+function adventureCardHtml(a, admin = false) {
   const cover = a.cover_key
     ? `<img src="/photos/${encodeURIComponent(a.cover_key)}" alt="" loading="lazy" />`
     : "";
   const summary = localized(a, "summary");
   return `
-    <a class="adventure-card" href="/adventure/${a.slug}" data-link>
-      <div class="adventure-card-cover">
-        <span class="status-badge ${a.status === "completed" ? "completed" : ""}">${a.status === "completed" ? t("completed") : t("upcoming")}</span>
-        ${cover}
-      </div>
-      <div class="adventure-card-body">
-        <h2>${escapeHtml(a.title)}</h2>
-        <div class="adventure-meta">${escapeHtml(a.destination || "")}${a.date_label ? " · " + escapeHtml(a.date_label) : ""}</div>
-        <p>${escapeHtml(summary || "")}</p>
-      </div>
-    </a>
+    <div class="adventure-card-wrap" data-slug="${escapeHtml(a.slug)}">
+      <a class="adventure-card" href="/adventure/${a.slug}" data-link>
+        <div class="adventure-card-cover">
+          <span class="status-badge ${a.status === "completed" ? "completed" : ""}">${a.status === "completed" ? t("completed") : t("upcoming")}</span>
+          ${cover}
+        </div>
+        <div class="adventure-card-body">
+          <h2>${escapeHtml(a.title)}</h2>
+          <div class="adventure-meta">${escapeHtml(a.destination || "")}${a.date_label ? " · " + escapeHtml(a.date_label) : ""}</div>
+          <p>${escapeHtml(summary || "")}</p>
+        </div>
+      </a>
+      ${admin ? `<button class="drag-handle" data-drag-handle type="button" aria-label="${t("dragHint")}">${icon("grip", 18)}</button>` : ""}
+    </div>
   `;
 }
 
-function openNewAdventureModal() {
+// Create (no argument) or edit (pass the adventure) — same form either way.
+// The summary field targets the column for the currently selected language,
+// so you edit the LV summary while viewing in Latvian.
+function openAdventureModal(adventure = null) {
+  const editing = !!adventure;
+  const summaryField = editing && lang !== "en" ? `summary_${lang}` : "summary";
+  const summaryValue = editing ? (adventure[summaryField] || "") : "";
+  const langNote = summaryField === "summary" ? "" : ` (${lang.toUpperCase()})`;
+
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
     <div class="modal">
-      <h2>${t("newAdventure")}</h2>
-      <form id="new-adventure-form">
-        <div class="field"><label>${t("fieldTitle")}</label><input name="title" required placeholder="${t("titlePlaceholder")}" /></div>
-        <div class="field"><label>${t("fieldDestination")}</label><input name="destination" placeholder="${t("titlePlaceholder")}" /></div>
-        <div class="field"><label>${t("fieldWhen")}</label><input name="date_label" placeholder="${t("whenPlaceholder")}" /></div>
+      <h2>${editing ? t("editAdventure") : t("newAdventure")}</h2>
+      <form id="adventure-form">
+        <div class="field"><label>${t("fieldTitle")}</label>
+          <input name="title" required placeholder="${t("titlePlaceholder")}" value="${escapeHtml(editing ? adventure.title : "")}" /></div>
+        <div class="field"><label>${t("fieldDestination")}</label>
+          <input name="destination" placeholder="${t("titlePlaceholder")}" value="${escapeHtml(editing ? adventure.destination || "" : "")}" /></div>
+        <div class="field"><label>${t("fieldWhen")}</label>
+          <input name="date_label" placeholder="${t("whenPlaceholder")}" value="${escapeHtml(editing ? adventure.date_label || "" : "")}" /></div>
         <div class="field"><label>${t("fieldStatus")}</label>
-          <select name="status"><option value="upcoming">${t("upcoming")}</option><option value="completed">${t("completed")}</option></select>
-        </div>
-        <div class="field"><label>${t("fieldSummary")}</label><textarea name="summary" placeholder="${t("summaryPlaceholder")}"></textarea></div>
-        <div class="field"><label>${t("fieldSource")}</label><input name="source_url" placeholder="${t("sourcePlaceholder")}" /></div>
+          <select name="status">
+            <option value="upcoming"${editing && adventure.status !== "completed" ? " selected" : ""}>${t("upcoming")}</option>
+            <option value="completed"${editing && adventure.status === "completed" ? " selected" : ""}>${t("completed")}</option>
+          </select></div>
+        <div class="field"><label>${t("fieldSummary")}${langNote}</label>
+          <textarea name="${summaryField}" placeholder="${t("summaryPlaceholder")}">${escapeHtml(summaryValue)}</textarea></div>
+        <div class="field"><label>${t("fieldSource")}</label>
+          <input name="source_url" placeholder="${t("sourcePlaceholder")}" value="${escapeHtml(editing ? adventure.source_url || "" : "")}" /></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-outline btn-block" id="cancel-modal">${t("cancel")}</button>
-          <button type="submit" class="btn btn-block">${t("create")}</button>
+          <button type="submit" class="btn btn-block">${editing ? t("saveChanges") : t("create")}</button>
         </div>
       </form>
     </div>
@@ -433,15 +515,22 @@ function openNewAdventureModal() {
   document.body.appendChild(overlay);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
   overlay.querySelector("#cancel-modal").addEventListener("click", () => overlay.remove());
-  overlay.querySelector("#new-adventure-form").addEventListener("submit", async (e) => {
+
+  overlay.querySelector("#adventure-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    const payload = Object.fromEntries(fd.entries());
+    const payload = Object.fromEntries(new FormData(e.target).entries());
     try {
-      const { slug } = await api("adventures", { method: "POST", body: JSON.stringify(payload) });
-      overlay.remove();
-      document.querySelectorAll(".fab").forEach((f) => f.remove());
-      navigate(`/adventure/${slug}`);
+      if (editing) {
+        await api(`adventures/${adventure.slug}`, { method: "PATCH", body: JSON.stringify(payload) });
+        overlay.remove();
+        toast(t("savedToast"));
+        renderAdventure(adventure.slug);
+      } else {
+        const { slug } = await api("adventures", { method: "POST", body: JSON.stringify(payload) });
+        overlay.remove();
+        document.querySelectorAll(".fab").forEach((f) => f.remove());
+        navigate(`/adventure/${slug}`);
+      }
     } catch (err) {
       toast(err.message);
     }
@@ -449,6 +538,20 @@ function openNewAdventureModal() {
 }
 
 // ---------- adventure detail ----------
+
+// Which tab is open, tracked per adventure so a re-render (after saving an
+// edit or uploading a photo) keeps you where you were.
+let activeTab = { slug: null, type: null };
+
+function resolveActiveTab(adventure) {
+  const types = adventure.sections.map((sec) => sec.type);
+  if (activeTab.slug === adventure.slug && types.includes(activeTab.type)) {
+    return activeTab.type;
+  }
+  // Opening fresh: land on the first tab that actually has something in it.
+  const withContent = adventure.sections.find((sec) => (localized(sec, "body") || "").trim());
+  return withContent ? withContent.type : types[0];
+}
 
 async function renderAdventure(slug) {
   document.querySelectorAll(".fab").forEach((f) => f.remove());
@@ -467,12 +570,31 @@ async function renderAdventure(slug) {
     ? `<img src="/photos/${encodeURIComponent(adventure.cover_key)}" alt="" />`
     : "";
   const summary = localized(adventure, "summary");
+  activeTab = { slug: adventure.slug, type: resolveActiveTab(adventure) };
+
+  const tabs = adventure.sections
+    .map((sec) => {
+      const meta = SECTION_META[sec.type] || { icon: "map" };
+      const label = t("sectionTitles")[sec.type] || sec.title;
+      const on = sec.type === activeTab.type;
+      return `<button class="cover-tab${on ? " active" : ""}" data-tab="${sec.type}" type="button" aria-selected="${on}">
+        ${icon(meta.icon, 15)}<span>${escapeHtml(label)}</span>
+      </button>`;
+    })
+    .join("");
 
   $app.innerHTML = `
     <a class="back-link" href="/" data-link>${icon("arrowLeft", 16)}<span>${t("allAdventures")}</span></a>
-    <div class="detail-cover">${cover}${admin ? `<button class="cover-upload-btn" id="cover-upload">${icon("camera", 16)}<span>${adventure.cover_key ? t("changeCover") : t("addCover")}</span></button>` : ""}</div>
+    <div class="detail-cover">
+      ${cover}
+      ${admin ? `<button class="cover-upload-btn" id="cover-upload">${icon("camera", 16)}<span>${adventure.cover_key ? t("changeCover") : t("addCover")}</span></button>` : ""}
+      <nav class="cover-tabs" id="cover-tabs" role="tablist">${tabs}</nav>
+    </div>
     <div class="detail-header">
-      <h1>${escapeHtml(adventure.title)}</h1>
+      <div class="detail-title-row">
+        <h1>${escapeHtml(adventure.title)}</h1>
+        ${admin ? `<button class="edit-btn" id="edit-adventure" type="button">${icon("pencil", 15)}<span>${t("edit")}</span></button>` : ""}
+      </div>
       <div class="detail-meta">${escapeHtml(adventure.destination || "")}${adventure.date_label ? " · " + escapeHtml(adventure.date_label) : ""} · ${adventure.status === "completed" ? t("completed") : t("upcoming")}</div>
       ${summary ? `<p class="detail-summary">${escapeHtml(summary)}</p>` : ""}
       ${adventure.source_url ? `<a class="source-link" href="${escapeHtml(adventure.source_url)}" target="_blank" rel="noopener"><span>${t("viewOriginalPlan")}</span>${icon("externalLink", 14)}</a>` : ""}
@@ -497,9 +619,22 @@ async function renderAdventure(slug) {
   `;
 
   renderReactions(adventure);
-  renderSections(adventure, admin);
+  renderActiveSection(adventure, admin);
   renderComments(adventure.comments);
 
+  document.getElementById("cover-tabs").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-tab]");
+    if (!btn || btn.dataset.tab === activeTab.type) return;
+    activeTab = { slug: adventure.slug, type: btn.dataset.tab };
+    document.querySelectorAll(".cover-tab").forEach((b) => {
+      const on = b.dataset.tab === activeTab.type;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on);
+    });
+    renderActiveSection(adventure, admin);
+  });
+
+  document.getElementById("edit-adventure")?.addEventListener("click", () => openAdventureModal(adventure));
   document.getElementById("cover-upload")?.addEventListener("click", () => {
     pickAndUploadPhoto(slug, "cover");
   });
@@ -537,11 +672,15 @@ function renderReactions(adventure) {
   });
 }
 
-function renderSections(adventure, admin) {
+function renderActiveSection(adventure, admin) {
   const el = document.getElementById("sections");
-  el.innerHTML = adventure.sections.map((s) => sectionHtml(s, admin)).join("");
-
-  adventure.sections.forEach((s) => wireSection(adventure.slug, s, admin));
+  const section = adventure.sections.find((sec) => sec.type === activeTab.type);
+  if (!section) {
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = sectionHtml(section, admin);
+  wireSection(adventure.slug, section, admin);
 }
 
 function sectionHtml(s, admin) {
@@ -557,10 +696,10 @@ function sectionHtml(s, admin) {
 
   return `
     <div class="section-card" data-section="${s.type}" data-section-id="${s.id}">
-      <div class="section-card-head">
-        <h3>${icon(meta.icon, 19)}<span>${escapeHtml(title)}</span></h3>
-        ${admin ? `<button class="edit-btn" data-edit>${icon("pencil", 15)}<span>${t("edit")}</span></button>` : ""}
-      </div>
+      ${admin ? `<div class="section-card-head">
+        <h3 class="sr-title">${icon(meta.icon, 18)}<span>${escapeHtml(title)}</span></h3>
+        <button class="edit-btn" data-edit>${icon("pencil", 15)}<span>${t("edit")}</span></button>
+      </div>` : ""}
       ${bodyHtml}
       ${(s.photos.length || admin) ? `<div class="photo-strip">${photos}${addTile}</div>` : ""}
     </div>
