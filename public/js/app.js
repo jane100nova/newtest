@@ -32,6 +32,10 @@ const ICONS = {
   externalLink: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
   trash: '<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>',
   compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+  activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  trendingUp: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
   calendar: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
   pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
@@ -95,6 +99,17 @@ const STRINGS = {
     setDepartureHint: "Add a departure date to show a countdown here.",
     addTrainingPhoto: "Add a training photo", addUpdate: "Add an update",
     deletePhotoConfirm: "Delete this photo?",
+    route: "Route", elevationHint: "Drag across the profile to walk the route.",
+    statDistance: "Distance", statAscent: "Ascent", statMoving: "Moving time",
+    statHigh: "Highest point", statHr: "Avg heart rate", statSpeed: "Max speed",
+    linkActivity: "Link activity", unlink: "Unlink",
+    pickActivity: "Pick an activity", noActivities: "No activities synced yet.",
+    noRoute: "No route yet \u2014 link a Strava activity to draw one.",
+    stravaSync: "Sync recent", stravaConnect: "Connect", stravaDisconnect: "Disconnect",
+    stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync enabled",
+    stravaNotConfigured: "Strava keys aren't set on the Worker yet.",
+    stravaConnectedToast: "Strava connected", stravaFailedToast: "Strava connection failed",
+    syncing: "Syncing\u2026", unlinked: "Unlinked",
     savedToast: "Saved", photoUploaded: "Photo uploaded", uploading: "Uploading…",
     addCover: "Add cover photo", changeCover: "Change cover",
     linkCopied: "Link copied!", copyLinkPrompt: "Copy this link:",
@@ -150,6 +165,17 @@ const STRINGS = {
     setDepartureHint: "Pievieno izbraukšanas datumu, lai šeit rādītu atskaiti.",
     addTrainingPhoto: "Pievienot treniņa foto", addUpdate: "Pievienot jaunumu",
     deletePhotoConfirm: "Dzēst šo foto?",
+    route: "Maršruts", elevationHint: "Velc pāri profilam, lai ietu pa maršrutu.",
+    statDistance: "Distance", statAscent: "Kāpums", statMoving: "Kustībā",
+    statHigh: "Augstākais punkts", statHr: "Vidējais pulss", statSpeed: "Maks. ātrums",
+    linkActivity: "Piesaistīt aktivitāti", unlink: "Atsaistīt",
+    pickActivity: "Izvēlies aktivitāti", noActivities: "Nav sinhronizētu aktivitāšu.",
+    noRoute: "Vēl nav maršruta \u2014 piesaisti Strava aktivitāti.",
+    stravaSync: "Sinhronizēt", stravaConnect: "Savienot", stravaDisconnect: "Atvienot",
+    stravaAutoSync: "Auto-sinhronizācija", autoSyncOn: "Auto-sinhronizācija ieslēgta",
+    stravaNotConfigured: "Strava atslēgas vēl nav iestatītas.",
+    stravaConnectedToast: "Strava savienota", stravaFailedToast: "Neizdevās savienot Strava",
+    syncing: "Sinhronizē\u2026", unlinked: "Atsaistīts",
     savedToast: "Saglabāts", photoUploaded: "Foto augšupielādēts", uploading: "Augšupielādē…",
     addCover: "Pievienot vāka foto", changeCover: "Mainīt vāka foto",
     linkCopied: "Saite nokopēta!", copyLinkPrompt: "Nokopē šo saiti:",
@@ -205,6 +231,17 @@ const STRINGS = {
     setDepartureHint: "Voeg een vertrekdatum toe voor een aftelling hier.",
     addTrainingPhoto: "Trainingsfoto toevoegen", addUpdate: "Update toevoegen",
     deletePhotoConfirm: "Deze foto verwijderen?",
+    route: "Route", elevationHint: "Sleep over het profiel om de route te volgen.",
+    statDistance: "Afstand", statAscent: "Stijging", statMoving: "Bewegingstijd",
+    statHigh: "Hoogste punt", statHr: "Gem. hartslag", statSpeed: "Max. snelheid",
+    linkActivity: "Activiteit koppelen", unlink: "Ontkoppelen",
+    pickActivity: "Kies een activiteit", noActivities: "Nog geen activiteiten gesynchroniseerd.",
+    noRoute: "Nog geen route \u2014 koppel een Strava-activiteit.",
+    stravaSync: "Synchroniseren", stravaConnect: "Verbinden", stravaDisconnect: "Verbreken",
+    stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync ingeschakeld",
+    stravaNotConfigured: "Strava-sleutels staan nog niet op de Worker.",
+    stravaConnectedToast: "Strava verbonden", stravaFailedToast: "Verbinden met Strava mislukt",
+    syncing: "Synchroniseren\u2026", unlinked: "Ontkoppeld",
     savedToast: "Opgeslagen", photoUploaded: "Foto geüpload", uploading: "Uploaden…",
     addCover: "Omslagfoto toevoegen", changeCover: "Omslagfoto wijzigen",
     linkCopied: "Link gekopieerd!", copyLinkPrompt: "Kopieer deze link:",
@@ -474,12 +511,14 @@ async function renderHome() {
 
   $app.innerHTML = `
     <h1 class="page-title">Zane&rsquo;s Adventures</h1>
+    ${admin ? `<div class="strava-strip" id="strava-strip"></div>` : ""}
     ${admin && adventures.length > 1 ? `<p class="drag-hint">${icon("grip", 14)}<span>${t("dragHint")}</span></p>` : ""}
     ${cards}
     ${bucketListHtml(bucketlist, admin)}
   `;
 
   wireBucketList(bucketlist, admin);
+  if (admin) renderStravaStrip();
 
   if (admin) {
     // Each group drags on its own, but the order saved is global (see
@@ -508,6 +547,76 @@ function feedGroupHtml(kind, items, admin) {
       <div class="adventure-list" data-feed-list>${items.map((a) => adventureCardHtml(a, admin)).join("")}</div>
     </section>
   `;
+}
+
+// Admin-only status line for the Strava connection: connect, sync, disconnect.
+async function renderStravaStrip() {
+  const el = document.getElementById("strava-strip");
+  if (!el) return;
+
+  let status;
+  try {
+    status = await api("strava/status");
+  } catch {
+    el.remove(); // pre-migration or not reachable — say nothing rather than error
+    return;
+  }
+
+  if (!status.configured) {
+    el.innerHTML = `<span class="strava-note">${icon("activity", 15)}<span>${t("stravaNotConfigured")}</span></span>`;
+    return;
+  }
+
+  el.innerHTML = status.connected
+    ? `<span class="strava-note">${icon("activity", 15)}<b>Strava</b><span class="sep">·</span>${escapeHtml(status.athlete)}<span class="sep">·</span>${status.activities}</span>
+       <span class="strava-actions">
+         <button class="edit-btn" id="strava-sync" type="button">${t("stravaSync")}</button>
+         <button class="edit-btn" id="strava-auto" type="button">${t("stravaAutoSync")}</button>
+         <button class="edit-btn danger" id="strava-disconnect" type="button">${t("stravaDisconnect")}</button>
+       </span>`
+    : `<span class="strava-note">${icon("activity", 15)}<b>Strava</b></span>
+       <button class="edit-btn" id="strava-connect" type="button">${t("stravaConnect")}</button>`;
+
+  el.querySelector("#strava-connect")?.addEventListener("click", async () => {
+    try {
+      const { url } = await api("strava/connect", { method: "POST" });
+      location.href = url; // leaves the app; Strava sends the browser back
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  el.querySelector("#strava-sync")?.addEventListener("click", async () => {
+    toast(t("syncing"));
+    try {
+      const { imported } = await api("strava/sync", { method: "POST", body: JSON.stringify({ page: 1 }) });
+      toast(`${t("savedToast")} · ${imported}`);
+      renderStravaStrip();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  // One-time: registers this site as a Strava push subscription so new
+  // activities arrive on their own instead of needing a manual sync.
+  el.querySelector("#strava-auto")?.addEventListener("click", async () => {
+    try {
+      await api("strava/webhook/subscribe", { method: "POST" });
+      toast(t("autoSyncOn"));
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  el.querySelector("#strava-disconnect")?.addEventListener("click", async () => {
+    if (!confirm(t("logoutConfirm"))) return;
+    try {
+      await api("strava/disconnect", { method: "POST" });
+      renderStravaStrip();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
 }
 
 function bucketListHtml(items, admin) {
@@ -806,6 +915,276 @@ function openAdventureModal(adventure = null) {
   });
 }
 
+// ---------- route: map + elevation profile ----------
+
+const PROFILE_W = 1000;
+const PROFILE_H = 200;
+
+function fmtKm(m) { return `${(Number(m) / 1000).toFixed(1)} km`; }
+function fmtM(m) { return `${Math.round(Number(m) || 0)} m`; }
+function fmtSpeed(ms) { return `${(Number(ms) * 3.6).toFixed(1)} km/h`; }
+function fmtDuration(sec) {
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.round((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
+// Several activities (a multi-day trek) become one continuous series: each
+// leg stays separate for the map, while distances accumulate for the profile.
+function routeSeries(activities) {
+  const sorted = [...activities].sort((a, b) =>
+    String(a.start_date).localeCompare(String(b.start_date))
+  );
+
+  const legs = [];
+  const points = [];
+  let offset = 0;
+
+  for (const a of sorted) {
+    const track = Array.isArray(a.track) ? a.track : [];
+    const leg = [];
+    let lastD = 0;
+
+    for (const [lat, lng, ele, , hr, v, d] of track) {
+      if (typeof lat !== "number" || typeof lng !== "number") continue;
+      leg.push([lat, lng]);
+      if (typeof d === "number") lastD = d;
+      points.push({ lat, lng, ele, hr, v, d: offset + lastD });
+    }
+
+    offset += lastD;
+    if (leg.length) legs.push(leg);
+  }
+  return { legs, points };
+}
+
+function routeStats(activities) {
+  const sum = (f) => activities.reduce((n, a) => n + (Number(a[f]) || 0), 0);
+  const nums = (f) => activities.map((a) => a[f]).filter((v) => typeof v === "number");
+
+  const withHr = activities.filter((a) => typeof a.average_heartrate === "number");
+  const hrWeight = withHr.reduce((n, a) => n + (Number(a.moving_time) || 0), 0);
+  const highs = nums("elev_high");
+  const speeds = nums("max_speed");
+
+  return {
+    distance: sum("distance_m"),
+    ascent: sum("ascent_m"),
+    moving: sum("moving_time"),
+    high: highs.length ? Math.max(...highs) : null,
+    // Weighted by moving time, so a long day counts for more than a short one.
+    hr: hrWeight
+      ? withHr.reduce((n, a) => n + a.average_heartrate * (Number(a.moving_time) || 0), 0) / hrWeight
+      : null,
+    maxSpeed: speeds.length ? Math.max(...speeds) : null,
+  };
+}
+
+function profileSvg(points) {
+  const pts = points.filter((p) => typeof p.ele === "number");
+  if (pts.length < 2) return "";
+
+  const maxD = pts[pts.length - 1].d || 1;
+  const eles = pts.map((p) => p.ele);
+  let lo = Math.min(...eles);
+  let hi = Math.max(...eles);
+  // A flat walk shouldn't render as a razor-thin line across the middle.
+  if (hi - lo < 20) hi = lo + 20;
+  const pad = (hi - lo) * 0.08;
+  lo -= pad;
+  hi += pad;
+
+  const x = (d) => (d / maxD) * PROFILE_W;
+  const y = (e) => PROFILE_H - ((e - lo) / (hi - lo)) * PROFILE_H;
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.d).toFixed(1)},${y(p.ele).toFixed(1)}`).join("");
+
+  return `
+    <svg class="profile-svg" viewBox="0 0 ${PROFILE_W} ${PROFILE_H}" preserveAspectRatio="none"
+         role="img" aria-label="${escapeHtml(t("statAscent"))}">
+      <path class="profile-area" d="${line}L${PROFILE_W},${PROFILE_H}L0,${PROFILE_H}Z" />
+      <path class="profile-line" d="${line}" vector-effect="non-scaling-stroke" />
+      <line class="profile-cursor" x1="0" y1="0" x2="0" y2="${PROFILE_H}"
+            vector-effect="non-scaling-stroke" style="display:none" />
+    </svg>
+  `;
+}
+
+function readoutHtml(p) {
+  return [
+    `<b>${(p.d / 1000).toFixed(1)}</b> km`,
+    typeof p.ele === "number" ? `<b>${Math.round(p.ele)}</b> m` : null,
+    typeof p.hr === "number" ? `<b>${Math.round(p.hr)}</b> bpm` : null,
+    typeof p.v === "number" ? `<b>${(p.v * 3.6).toFixed(1)}</b> km/h` : null,
+  ]
+    .filter(Boolean)
+    .join('<span class="sep">·</span>');
+}
+
+function routePanelHtml(adventure, admin) {
+  const activities = adventure.activities || [];
+  if (!activities.length && !admin) return "";
+
+  const head = `
+    <div class="route-head">
+      <h3>${icon("map", 18)}<span>${t("route")}</span></h3>
+      ${admin ? `<button class="btn btn-outline btn-small" id="link-activity" type="button">${icon("plus", 15)}<span>${t("linkActivity")}</span></button>` : ""}
+    </div>`;
+
+  if (!activities.length) {
+    return `<section class="route-panel">${head}<p class="route-empty">${t("noRoute")}</p></section>`;
+  }
+
+  const { legs, points } = routeSeries(activities);
+  const s = routeStats(activities);
+  const stat = (ico, value, label) =>
+    `<div class="stat">${icon(ico, 15)}<span class="stat-value">${escapeHtml(value)}</span><span class="stat-label">${escapeHtml(label)}</span></div>`;
+
+  return `
+    <section class="route-panel">
+      ${head}
+      ${legs.length ? `<div class="route-map" id="route-map"></div>` : ""}
+      ${points.some((p) => typeof p.ele === "number") ? `
+        <div class="route-profile">
+          ${profileSvg(points)}
+          <div class="route-readout">${t("elevationHint")}</div>
+        </div>` : ""}
+      <div class="route-stats">
+        ${stat("map", fmtKm(s.distance), t("statDistance"))}
+        ${stat("trendingUp", fmtM(s.ascent), t("statAscent"))}
+        ${stat("clock", fmtDuration(s.moving), t("statMoving"))}
+        ${s.high != null ? stat("mountain", fmtM(s.high), t("statHigh")) : ""}
+        ${s.hr != null ? stat("heart", `${Math.round(s.hr)} bpm`, t("statHr")) : ""}
+        ${s.maxSpeed != null ? stat("gauge", fmtSpeed(s.maxSpeed), t("statSpeed")) : ""}
+      </div>
+      ${admin ? `<ul class="route-activities">${activities
+        .map((a) => `<li data-activity-id="${a.id}"><span>${escapeHtml(a.name || "")}</span>
+          <button class="edit-btn danger" data-unlink type="button">${escapeHtml(t("unlink"))}</button></li>`)
+        .join("")}</ul>` : ""}
+    </section>`;
+}
+
+function wireRoutePanel(adventure, admin) {
+  const panel = document.querySelector(".route-panel");
+  if (!panel) return;
+
+  const activities = adventure.activities || [];
+  const { legs, points } = routeSeries(activities);
+  let marker = null;
+
+  // Leaflet comes from a CDN. If it didn't load, the profile and stats still
+  // work — only the basemap is missing.
+  const mapEl = document.getElementById("route-map");
+  if (mapEl && window.L && legs.length) {
+    const map = L.map(mapEl, { scrollWheelZoom: false });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    const drawn = legs.map((leg) => L.polyline(leg, { color: "#d97a3f", weight: 4, opacity: 0.9 }).addTo(map));
+    map.fitBounds(L.featureGroup(drawn).getBounds(), { padding: [18, 18] });
+    marker = L.circleMarker(legs[0][0], {
+      radius: 6, color: "#fff", weight: 2, fillColor: "#1f3d2b", fillOpacity: 1,
+    }).addTo(map);
+  } else if (mapEl) {
+    mapEl.remove();
+  }
+
+  const svg = panel.querySelector(".profile-svg");
+  const readout = panel.querySelector(".route-readout");
+  if (svg && readout) {
+    const pts = points.filter((p) => typeof p.ele === "number");
+    const maxD = pts[pts.length - 1]?.d || 1;
+    const cursor = svg.querySelector(".profile-cursor");
+
+    const scrub = (clientX) => {
+      const box = svg.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
+      const target = ratio * maxD;
+      let best = pts[0];
+      for (const p of pts) {
+        if (p.d <= target) best = p;
+        else break;
+      }
+      cursor.setAttribute("x1", ratio * PROFILE_W);
+      cursor.setAttribute("x2", ratio * PROFILE_W);
+      cursor.style.display = "";
+      readout.innerHTML = readoutHtml(best);
+      marker?.setLatLng([best.lat, best.lng]);
+    };
+
+    svg.addEventListener("pointerdown", (e) => scrub(e.clientX));
+    svg.addEventListener("pointermove", (e) => { if (e.buttons || e.pointerType !== "mouse") scrub(e.clientX); });
+    svg.addEventListener("pointerleave", () => {
+      cursor.style.display = "none";
+      readout.textContent = t("elevationHint");
+    });
+  }
+
+  if (!admin) return;
+
+  document.getElementById("link-activity")?.addEventListener("click", () => openActivityPicker(adventure.slug));
+
+  panel.querySelectorAll("[data-unlink]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await api(`activities/${btn.closest("li").dataset.activityId}`, { method: "DELETE" });
+        toast(t("unlinked"));
+        renderAdventure(adventure.slug);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  });
+}
+
+async function openActivityPicker(slug) {
+  let activities = [];
+  try {
+    ({ activities } = await api("activities"));
+  } catch (err) {
+    toast(err.message);
+    return;
+  }
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal">
+      <h2>${t("pickActivity")}</h2>
+      ${activities.length ? `<ul class="activity-picker">${activities
+        .map((a) => `<li><button type="button" data-pick="${a.id}">
+            <span class="ap-name">${escapeHtml(a.name || "")}</span>
+            <span class="ap-meta">${escapeHtml(String(a.start_date).slice(0, 10))}<span class="sep">·</span>${fmtKm(a.distance_m)}<span class="sep">·</span>${fmtM(a.ascent_m)}${a.adventure_title ? `<span class="sep">·</span>${escapeHtml(a.adventure_title)}` : ""}</span>
+          </button></li>`)
+        .join("")}</ul>` : `<p class="route-empty">${t("noActivities")}</p>`}
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline btn-block" id="cancel-modal">${t("cancel")}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector("#cancel-modal").addEventListener("click", () => overlay.remove());
+
+  overlay.querySelectorAll("[data-pick]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await api(`adventures/${slug}/activities`, {
+          method: "POST",
+          body: JSON.stringify({ activity_id: Number(btn.dataset.pick) }),
+        });
+        overlay.remove();
+        toast(t("savedToast"));
+        renderAdventure(slug);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  });
+}
+
 // ---------- adventure detail ----------
 
 // Which tab is open, tracked per adventure so a re-render (after saving an
@@ -869,6 +1248,8 @@ async function renderAdventure(slug) {
       ${adventure.source_url ? `<a class="source-link" href="${escapeHtml(adventure.source_url)}" target="_blank" rel="noopener"><span>${t("viewOriginalPlan")}</span>${icon("externalLink", 14)}</a>` : ""}
     </div>
 
+    ${routePanelHtml(adventure, admin)}
+
     <div class="action-row">
       <div class="reactions" id="reactions"></div>
       <button class="btn btn-outline btn-small" id="share-btn">${icon("share", 16)}<span>${t("share")}</span></button>
@@ -888,6 +1269,7 @@ async function renderAdventure(slug) {
   `;
 
   renderReactions(adventure);
+  wireRoutePanel(adventure, admin);
   renderActiveSection(adventure, admin);
   renderComments(adventure.comments);
 
@@ -1214,6 +1596,12 @@ async function shareAdventure(adventure) {
   } catch {
     prompt(t("copyLinkPrompt"), url);
   }
+}
+
+const stravaResult = new URLSearchParams(location.search).get("strava");
+if (stravaResult) {
+  history.replaceState({}, "", location.pathname);
+  setTimeout(() => toast(stravaResult === "connected" ? t("stravaConnectedToast") : t("stravaFailedToast")), 50);
 }
 
 updateLangSwitch();

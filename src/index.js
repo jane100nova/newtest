@@ -45,6 +45,17 @@ async function getAdventureBySlug(env, slug) {
   const adventure = await env.DB.prepare("SELECT * FROM adventures WHERE slug = ?").bind(slug).first();
   if (!adventure) return null;
 
+  // Activities arrive from migration 0008; degrade rather than 500 without it.
+  let activities = [];
+  try {
+    ({ results: activities } = await env.DB
+      .prepare("SELECT * FROM activities WHERE adventure_id = ? ORDER BY start_date")
+      .bind(adventure.id)
+      .all());
+  } catch {
+    activities = [];
+  }
+
   const [sections, photos, comments, reactions] = await Promise.all([
     env.DB.prepare("SELECT * FROM sections WHERE adventure_id = ? ORDER BY sort_order").bind(adventure.id).all(),
     env.DB.prepare("SELECT * FROM photos WHERE adventure_id = ? ORDER BY created_at").bind(adventure.id).all(),
@@ -66,10 +77,159 @@ async function getAdventureBySlug(env, slug) {
     cover_photos: photosByType.cover || [],
     comments: comments.results,
     reactions: reactionMap,
+    activities: activities.map((a) => ({ ...a, track: JSON.parse(a.track || "[]") })),
   };
 }
 
-async function handleApi(request, env, url) {
+// ---------------------------------------------------------------- Strava --
+// Garmin Connect syncs activities to Strava; Strava pushes them here. We keep
+// one athlete's tokens (row id = 1) and a downsampled copy of each track.
+
+const STRAVA_API = "https://www.strava.com/api/v3";
+const STRAVA_SCOPE = "activity:read_all";
+const TRACK_MAX_POINTS = 1200;
+const STREAM_KEYS = "latlng,altitude,time,heartrate,velocity_smooth,distance";
+
+function round(value, places) {
+  if (typeof value !== "number" || !isFinite(value)) return null;
+  const m = 10 ** places;
+  return Math.round(value * m) / m;
+}
+
+function stravaAuthRow(env) {
+  return env.DB.prepare("SELECT * FROM strava_auth WHERE id = 1").first();
+}
+
+// A full-resolution track is one point per second — far more than a phone-sized
+// map or chart can show. Keep every Nth point, plus the last one.
+function buildTrack(streams) {
+  const latlng = streams?.latlng?.data;
+  if (!Array.isArray(latlng) || !latlng.length) return [];
+
+  const alt = streams?.altitude?.data || [];
+  const time = streams?.time?.data || [];
+  const hr = streams?.heartrate?.data || [];
+  const vel = streams?.velocity_smooth?.data || [];
+  const dist = streams?.distance?.data || [];
+
+  const at = (i) => {
+    const pair = latlng[i] || [];
+    return [
+      round(pair[0], 5),
+      round(pair[1], 5),
+      round(alt[i], 1),
+      Number.isFinite(time[i]) ? time[i] : null,
+      Number.isFinite(hr[i]) ? hr[i] : null,
+      round(vel[i], 2),
+      Number.isFinite(dist[i]) ? Math.round(dist[i]) : null,
+    ];
+  };
+
+  const n = latlng.length;
+  const step = Math.max(1, Math.ceil(n / TRACK_MAX_POINTS));
+  const out = [];
+  for (let i = 0; i < n; i += step) out.push(at(i));
+  if ((n - 1) % step !== 0) out.push(at(n - 1));
+  return out;
+}
+
+// Access tokens last ~6 hours; the refresh token is the durable half.
+async function stravaAccessToken(env) {
+  const row = await stravaAuthRow(env);
+  if (!row?.refresh_token) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (row.access_token && row.expires_at > now + 120) return row.access_token;
+
+  const res = await fetch("https://www.strava.com/oauth/token", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      client_id: env.STRAVA_CLIENT_ID,
+      client_secret: env.STRAVA_CLIENT_SECRET,
+      grant_type: "refresh_token",
+      refresh_token: row.refresh_token,
+    }),
+  });
+  if (!res.ok) return null;
+
+  const tok = await res.json();
+  await env.DB.prepare(
+    `UPDATE strava_auth SET access_token = ?, refresh_token = ?, expires_at = ?,
+       updated_at = datetime('now') WHERE id = 1`
+  )
+    .bind(tok.access_token, tok.refresh_token, tok.expires_at)
+    .run();
+  return tok.access_token;
+}
+
+async function stravaGet(env, path, params = {}) {
+  const token = await stravaAccessToken(env);
+  if (!token) throw new Error("Strava is not connected");
+
+  const target = new URL(`${STRAVA_API}/${path}`);
+  for (const [k, v] of Object.entries(params)) target.searchParams.set(k, v);
+
+  const res = await fetch(target, { headers: { authorization: `Bearer ${token}` } });
+  if (res.status === 429) throw new Error("Strava rate limit reached — try again later");
+  if (!res.ok) throw new Error(`Strava request failed (${res.status})`);
+  return res.json();
+}
+
+// Upsert, so re-syncing an activity refreshes its data without detaching it
+// from the adventure it was linked to (adventure_id is left out of the UPDATE).
+async function importActivity(env, activityId) {
+  const a = await stravaGet(env, `activities/${activityId}`);
+
+  let streams = {};
+  try {
+    streams = await stravaGet(env, `activities/${activityId}/streams`, {
+      keys: STREAM_KEYS,
+      key_by_type: "true",
+    });
+  } catch {
+    // Treadmill runs and other GPS-less activities have no streams. The
+    // summary is still worth keeping.
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO activities (id, name, sport_type, start_date, moving_time, elapsed_time,
+       distance_m, ascent_m, elev_high, elev_low, average_speed, max_speed,
+       average_heartrate, max_heartrate, track, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name, sport_type = excluded.sport_type,
+       start_date = excluded.start_date, moving_time = excluded.moving_time,
+       elapsed_time = excluded.elapsed_time, distance_m = excluded.distance_m,
+       ascent_m = excluded.ascent_m, elev_high = excluded.elev_high,
+       elev_low = excluded.elev_low, average_speed = excluded.average_speed,
+       max_speed = excluded.max_speed, average_heartrate = excluded.average_heartrate,
+       max_heartrate = excluded.max_heartrate, track = excluded.track,
+       synced_at = datetime('now')`
+  )
+    .bind(
+      a.id,
+      a.name || "",
+      a.sport_type || a.type || "",
+      a.start_date || "",
+      a.moving_time || 0,
+      a.elapsed_time || 0,
+      a.distance || 0,
+      a.total_elevation_gain || 0,
+      a.elev_high ?? null,
+      a.elev_low ?? null,
+      a.average_speed ?? null,
+      a.max_speed ?? null,
+      a.average_heartrate ?? null,
+      a.max_heartrate ?? null,
+      JSON.stringify(buildTrack(streams))
+    )
+    .run();
+
+  return a.id;
+}
+
+async function handleApi(request, env, url, ctx) {
   const parts = url.pathname.replace(/^\/api\//, "").split("/").filter(Boolean);
   const method = request.method;
 
@@ -421,6 +581,217 @@ async function handleApi(request, env, url) {
     return json({ cover_key: key }, { status: 201 });
   }
 
+  // ---- Strava ----
+
+  // GET /api/strava/webhook — Strava's subscription handshake (public by design)
+  if (method === "GET" && parts.length === 2 && parts[0] === "strava" && parts[1] === "webhook") {
+    const expected = (env.STRAVA_VERIFY_TOKEN || "").trim();
+    if (!expected || url.searchParams.get("hub.verify_token") !== expected) {
+      return json({ error: "bad verify token" }, { status: 403 });
+    }
+    return json({ "hub.challenge": url.searchParams.get("hub.challenge") });
+  }
+
+  // POST /api/strava/webhook — an activity was created, updated or deleted.
+  // Strava retries unless it gets a fast 200, so the import runs after the
+  // response rather than inside it.
+  if (method === "POST" && parts.length === 2 && parts[0] === "strava" && parts[1] === "webhook") {
+    const event = await request.json().catch(() => ({}));
+    if (event.object_type === "activity") {
+      const auth = await stravaAuthRow(env);
+      // Only act on the athlete we're actually connected to.
+      if (auth?.athlete_id && Number(event.owner_id) === Number(auth.athlete_id)) {
+        if (event.aspect_type === "delete") {
+          ctx?.waitUntil(
+            env.DB.prepare("DELETE FROM activities WHERE id = ?").bind(event.object_id).run()
+          );
+        } else {
+          ctx?.waitUntil(importActivity(env, event.object_id).catch(() => {}));
+        }
+      }
+    }
+    return json({ ok: true });
+  }
+
+  // GET /api/strava/status  (admin)
+  if (method === "GET" && parts.length === 2 && parts[0] === "strava" && parts[1] === "status") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const auth = await stravaAuthRow(env).catch(() => null);
+    let count = 0;
+    try {
+      ({ count } = await env.DB.prepare("SELECT COUNT(*) AS count FROM activities").first());
+    } catch {
+      count = 0;
+    }
+    return json({
+      configured: !!(env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET),
+      connected: !!auth?.refresh_token,
+      athlete: auth?.athlete_name || "",
+      activities: count,
+    });
+  }
+
+  // POST /api/strava/connect  (admin) — returns the URL to send the browser to.
+  // A redirect can't carry the admin header, so the `state` value is what
+  // proves the callback belongs to a connect we started.
+  if (method === "POST" && parts.length === 2 && parts[0] === "strava" && parts[1] === "connect") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    if (!env.STRAVA_CLIENT_ID) return json({ error: "STRAVA_CLIENT_ID is not set" }, { status: 400 });
+
+    const state = crypto.randomUUID();
+    await env.DB.prepare(
+      "INSERT INTO strava_auth (id, state) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET state = excluded.state"
+    )
+      .bind(state)
+      .run();
+
+    const authorize = new URL("https://www.strava.com/oauth/authorize");
+    authorize.searchParams.set("client_id", env.STRAVA_CLIENT_ID);
+    authorize.searchParams.set("response_type", "code");
+    authorize.searchParams.set("redirect_uri", `${url.origin}/api/strava/callback`);
+    authorize.searchParams.set("approval_prompt", "auto");
+    authorize.searchParams.set("scope", STRAVA_SCOPE);
+    authorize.searchParams.set("state", state);
+    return json({ url: authorize.toString() });
+  }
+
+  // GET /api/strava/callback — Strava sends the browser back here
+  if (method === "GET" && parts.length === 2 && parts[0] === "strava" && parts[1] === "callback") {
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    const auth = await stravaAuthRow(env);
+
+    if (!code || !state || !auth?.state || state !== auth.state) {
+      return Response.redirect(`${url.origin}/?strava=failed`, 302);
+    }
+
+    const res = await fetch("https://www.strava.com/oauth/token", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        client_id: env.STRAVA_CLIENT_ID,
+        client_secret: env.STRAVA_CLIENT_SECRET,
+        code,
+        grant_type: "authorization_code",
+      }),
+    });
+    if (!res.ok) return Response.redirect(`${url.origin}/?strava=failed`, 302);
+
+    const tok = await res.json();
+    const name = `${tok.athlete?.firstname || ""} ${tok.athlete?.lastname || ""}`.trim();
+    await env.DB.prepare(
+      `UPDATE strava_auth SET athlete_id = ?, athlete_name = ?, access_token = ?,
+         refresh_token = ?, expires_at = ?, scope = ?, state = '',
+         updated_at = datetime('now') WHERE id = 1`
+    )
+      .bind(
+        tok.athlete?.id ?? null,
+        name,
+        tok.access_token || "",
+        tok.refresh_token || "",
+        tok.expires_at || 0,
+        url.searchParams.get("scope") || ""
+      )
+      .run();
+
+    return Response.redirect(`${url.origin}/?strava=connected`, 302);
+  }
+
+  // POST /api/strava/disconnect  (admin) — drops the tokens, keeps the activities
+  if (method === "POST" && parts.length === 2 && parts[0] === "strava" && parts[1] === "disconnect") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    await env.DB.prepare("DELETE FROM strava_auth WHERE id = 1").run();
+    return json({ ok: true });
+  }
+
+  // POST /api/strava/sync  (admin) — pull a page of recent activities.
+  // Ten at a time: each one costs two Strava calls, and a Worker request has a
+  // subrequest budget.
+  if (method === "POST" && parts.length === 2 && parts[0] === "strava" && parts[1] === "sync") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const body = await request.json().catch(() => ({}));
+    const page = Math.max(1, Math.min(20, Number(body.page) || 1));
+
+    const list = await stravaGet(env, "athlete/activities", { per_page: "10", page: String(page) });
+    let imported = 0;
+    const failed = [];
+    for (const a of Array.isArray(list) ? list : []) {
+      try {
+        await importActivity(env, a.id);
+        imported++;
+      } catch (err) {
+        failed.push({ id: a.id, error: String(err.message || err) });
+      }
+    }
+    return json({ imported, failed, page, more: Array.isArray(list) && list.length === 10 });
+  }
+
+  // POST /api/strava/webhook/subscribe  (admin) — registers this site with Strava
+  if (method === "POST" && parts.length === 3 && parts[0] === "strava" && parts[1] === "webhook" && parts[2] === "subscribe") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    if (!env.STRAVA_VERIFY_TOKEN) return json({ error: "STRAVA_VERIFY_TOKEN is not set" }, { status: 400 });
+
+    const res = await fetch(`${STRAVA_API}/push_subscriptions`, {
+      method: "POST",
+      body: new URLSearchParams({
+        client_id: env.STRAVA_CLIENT_ID || "",
+        client_secret: env.STRAVA_CLIENT_SECRET || "",
+        callback_url: `${url.origin}/api/strava/webhook`,
+        verify_token: env.STRAVA_VERIFY_TOKEN,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return json({ ok: res.ok, detail: data }, { status: res.ok ? 200 : 400 });
+  }
+
+  // ---- Activities ----
+
+  // GET /api/activities  (admin) — the picker for attaching one to an adventure
+  if (method === "GET" && parts.length === 1 && parts[0] === "activities") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const { results } = await env.DB.prepare(
+      `SELECT a.id, a.name, a.sport_type, a.start_date, a.distance_m, a.ascent_m,
+              a.adventure_id, v.title AS adventure_title
+       FROM activities a
+       LEFT JOIN adventures v ON v.id = a.adventure_id
+       ORDER BY a.start_date DESC LIMIT 50`
+    ).all();
+    return json({ activities: results });
+  }
+
+  // POST /api/adventures/:slug/activities  (admin) — attach
+  if (method === "POST" && parts.length === 3 && parts[0] === "adventures" && parts[2] === "activities") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const adventure = await env.DB.prepare("SELECT id FROM adventures WHERE slug = ?").bind(parts[1]).first();
+    if (!adventure) return json({ error: "not found" }, { status: 404 });
+
+    const body = await request.json().catch(() => ({}));
+    const id = Number(body.activity_id);
+    if (!id) return json({ error: "activity_id required" }, { status: 400 });
+
+    await env.DB.prepare("UPDATE activities SET adventure_id = ? WHERE id = ?").bind(adventure.id, id).run();
+    return json({ ok: true });
+  }
+
+  // DELETE /api/activities/:id  (admin) — detach, keeping the activity itself
+  if (method === "DELETE" && parts.length === 2 && parts[0] === "activities") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+    await env.DB.prepare("UPDATE activities SET adventure_id = NULL WHERE id = ?").bind(parts[1]).run();
+    return json({ ok: true });
+  }
+
   // POST /api/admin/verify
   if (method === "POST" && parts.length === 2 && parts[0] === "admin" && parts[1] === "verify") {
     // `configured` distinguishes "no ADMIN_KEY secret bound to this Worker"
@@ -449,7 +820,7 @@ export default {
 
     if (url.pathname.startsWith("/api/")) {
       try {
-        return await handleApi(request, env, url);
+        return await handleApi(request, env, url, ctx);
       } catch (err) {
         return json({ error: "server error", message: String(err) }, { status: 500 });
       }

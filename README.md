@@ -4,6 +4,12 @@ A mobile-first adventure journal. Each adventure has three tabs —
 **Preparation**, **Plan**, **Live updates** — plus photos, comments,
 reactions, and a share link for friends.
 
+Each adventure can also show the **route actually walked** — an
+OpenStreetMap map of the track with a scrubbable elevation profile and
+summary stats (distance, ascent, moving time, highest point, average
+heart rate, max speed). Tracks come from Garmin via Strava; see
+**Strava setup** below.
+
 **Preparation** counts down to the departure date ("21 days to
 departure") and holds a feed of training photos, each a full-width
 picture with a one-sentence caption. **Live updates** is the same feed,
@@ -66,6 +72,7 @@ You can do this either in the **dashboard** or with **wrangler CLI**
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0005_bucketlist.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0006_bucketlist_title.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0007_departure_date.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0008_strava.sql
    ```
    They can also be pasted into the D1 **Console** tab in the dashboard.
 
@@ -90,6 +97,46 @@ You can do this either in the **dashboard** or with **wrangler CLI**
 Once that's done, the site is fully live: anyone with the link can view,
 comment, and react from their phone; only you (with the passcode) can add
 adventures, edit section text, and upload photos.
+
+## Strava setup (for route maps)
+
+Garmin Connect syncs activities to Strava, and Strava pushes them here —
+so the watch never talks to this site directly. Set it up once:
+
+1. **Turn on Garmin → Strava sync.** In Garmin Connect, connect your
+   Strava account so completed activities upload automatically.
+
+2. **Create a Strava API application** at
+   <https://www.strava.com/settings/api>. Set **Authorization Callback
+   Domain** to your site's domain only — no `https://`, no path
+   (e.g. `newtest.example.workers.dev`). Note the **Client ID** and
+   **Client Secret**.
+
+3. **Add three secrets to the Worker** (Settings → Variables and Secrets,
+   or `npx wrangler secret put NAME`):
+
+   | Name | Value |
+   |---|---|
+   | `STRAVA_CLIENT_ID` | from step 2 |
+   | `STRAVA_CLIENT_SECRET` | from step 2 |
+   | `STRAVA_VERIFY_TOKEN` | any random string you invent |
+
+4. **Connect.** Open the site in admin mode (🔑) — a Strava strip appears
+   under the title. Tap **Connect** and approve on Strava. You'll be sent
+   back and the strip will show your name.
+
+5. **Backfill and automate.** **Sync recent** imports your last 10
+   activities (tap again for older ones). **Auto-sync** registers a
+   webhook so future activities arrive on their own, within seconds of
+   Garmin uploading them.
+
+6. **Attach a track to an adventure.** Open the adventure in admin mode
+   and use **Link activity** under Route. Link several for a multi-day
+   trek — the map draws each day and the stats add up.
+
+Nothing is shown publicly until an activity is linked to an adventure.
+Tokens live in the `strava_auth` table; **Disconnect** deletes them and
+leaves the imported activities in place.
 
 ## Local development
 

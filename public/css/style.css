@@ -1234,3 +1234,238 @@ img {
   padding: 4px 9px;
   font-size: 0.74rem;
 }
+
+/* ---------- Route: map, elevation profile, stats ---------- */
+.route-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.route-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 15px;
+}
+
+.route-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.route-head h3 .icon {
+  color: var(--color-primary);
+}
+
+.route-empty {
+  margin: 0;
+  padding: 0 15px 16px;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.route-map {
+  height: 260px;
+  width: 100%;
+  background: var(--color-surface-2);
+}
+
+/* Leaflet injects its own font sizing; keep the attribution unobtrusive. */
+.route-map .leaflet-container {
+  font-family: var(--font-body);
+}
+
+.route-profile {
+  padding: 12px 0 0;
+  border-top: 1px solid var(--color-border);
+}
+
+/* preserveAspectRatio="none" stretches the drawing to fill the width; the
+   stroke stays even because the paths use vector-effect: non-scaling-stroke. */
+.profile-svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+.profile-area {
+  fill: rgba(58, 90, 64, 0.14);
+}
+
+.profile-line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.profile-cursor {
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+}
+
+.route-readout {
+  padding: 7px 15px 12px;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  min-height: 1.6em;
+}
+
+.route-readout b {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.sep {
+  opacity: 0.45;
+  margin: 0 6px;
+}
+
+.route-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--color-border);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 460px) {
+  .route-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 13px;
+  background: var(--color-surface);
+}
+
+.stat .icon {
+  color: var(--color-accent);
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+}
+
+.route-activities {
+  list-style: none;
+  margin: 0;
+  padding: 10px 15px 14px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.route-activities li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--color-muted);
+}
+
+.route-activities .edit-btn {
+  padding: 3px 9px;
+  font-size: 0.72rem;
+  flex: none;
+}
+
+/* ---------- Strava admin strip ---------- */
+.strava-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -8px 0 18px;
+  padding: 9px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.strava-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.strava-note .icon {
+  color: #fc4c02;
+}
+
+.strava-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.strava-strip .edit-btn {
+  padding: 3px 9px;
+  font-size: 0.72rem;
+}
+
+/* ---------- Activity picker ---------- */
+.activity-picker {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.activity-picker button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.activity-picker button:hover {
+  border-color: var(--color-primary);
+}
+
+.ap-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.ap-meta {
+  font-size: 0.76rem;
+  color: var(--color-muted);
+}
