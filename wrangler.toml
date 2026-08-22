@@ -12,6 +12,10 @@ binding = "DB"
 database_name = "wayfarer"
 database_id = "fa4005d6-939d-42ed-8320-5f6cfe65c9a4"
 
+# Workers AI runs the caption translations (English in, LV/NL out).
+[ai]
+binding = "AI"
+
 [[r2_buckets]]
 binding = "PHOTOS"
 bucket_name = "wayfarer-photos"

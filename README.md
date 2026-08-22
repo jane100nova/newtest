@@ -73,6 +73,8 @@ You can do this either in the **dashboard** or with **wrangler CLI**
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0006_bucketlist_title.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0007_departure_date.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0008_strava.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0009_site_text.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0010_caption_translations.sql
    ```
    They can also be pasted into the D1 **Console** tab in the dashboard.
 
@@ -97,6 +99,27 @@ You can do this either in the **dashboard** or with **wrangler CLI**
 Once that's done, the site is fully live: anyone with the link can view,
 comment, and react from their phone; only you (with the passcode) can add
 adventures, edit section text, and upload photos.
+
+## Wording and translations
+
+Photo captions are written in **English** and machine-translated to Latvian
+and Dutch on save, by Workers AI (the `[ai]` binding in `wrangler.toml`,
+model `@cf/meta/m2m100-1.2b`). Editing a caption while viewing in Latvian
+or Dutch overwrites just that language by hand; editing the English one
+re-translates the other two. If Workers AI is unavailable the columns stay
+empty and the English caption shows through.
+
+The app's own wording — tab names, headings, button labels — can be
+rewritten without a deploy. In admin mode, tap **Site text** on the home
+page, pick a language, filter to the string you want and edit it.
+Overrides live in the `site_text` table and layer over the built-in
+defaults; emptying a field restores the original. Rewritten strings are
+flagged in the editor.
+
+A **completed** adventure hides tabs that have no text and no photos, so
+a past trip doesn't show an empty Preparation or Plan. Admin still sees
+every tab (marked with a dashed outline) so content can be added to one
+the public can't see yet.
 
 ## Strava setup (for route maps)
 

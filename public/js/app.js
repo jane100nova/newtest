@@ -107,6 +107,8 @@ const STRINGS = {
     noRoute: "No route yet \u2014 link a Strava activity to draw one.",
     stravaSync: "Sync recent", stravaConnect: "Connect", stravaDisconnect: "Disconnect",
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync enabled",
+    siteText: "Site text", filterText: "Filter\u2026",
+    siteTextHint: "Rewrite any wording that reads badly. Empty a field to restore the built-in text.",
     stravaNotConfigured: "Strava keys aren't set on the Worker yet.",
     stravaConnectedToast: "Strava connected", stravaFailedToast: "Strava connection failed",
     syncing: "Syncing\u2026", unlinked: "Unlinked",
@@ -173,6 +175,8 @@ const STRINGS = {
     noRoute: "Vēl nav maršruta \u2014 piesaisti Strava aktivitāti.",
     stravaSync: "Sinhronizēt", stravaConnect: "Savienot", stravaDisconnect: "Atvienot",
     stravaAutoSync: "Auto-sinhronizācija", autoSyncOn: "Auto-sinhronizācija ieslēgta",
+    siteText: "Vietnes teksti", filterText: "Filtrēt\u2026",
+    siteTextHint: "Pārraksti jebkuru frāzi. Iztukšo lauku, lai atjaunotu sākotnējo tekstu.",
     stravaNotConfigured: "Strava atslēgas vēl nav iestatītas.",
     stravaConnectedToast: "Strava savienota", stravaFailedToast: "Neizdevās savienot Strava",
     syncing: "Sinhronizē\u2026", unlinked: "Atsaistīts",
@@ -239,6 +243,8 @@ const STRINGS = {
     noRoute: "Nog geen route \u2014 koppel een Strava-activiteit.",
     stravaSync: "Synchroniseren", stravaConnect: "Verbinden", stravaDisconnect: "Verbreken",
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync ingeschakeld",
+    siteText: "Sitetekst", filterText: "Filteren\u2026",
+    siteTextHint: "Herschrijf teksten die niet lekker lopen. Leeg een veld om de standaardtekst te herstellen.",
     stravaNotConfigured: "Strava-sleutels staan nog niet op de Worker.",
     stravaConnectedToast: "Strava verbonden", stravaFailedToast: "Verbinden met Strava mislukt",
     syncing: "Synchroniseren\u2026", unlinked: "Ontkoppeld",
@@ -251,8 +257,50 @@ const STRINGS = {
 
 let lang = localStorage.getItem(LANG_STORAGE) || "en";
 if (!STRINGS[lang]) lang = "en";
+// Wording overrides from the database, layered over the built-in strings so a
+// translation that reads badly can be fixed without a deploy.
+let SITE_TEXT = { en: {}, lv: {}, nl: {} };
+
+async function loadSiteText() {
+  try {
+    const { text } = await api("site-text");
+    if (!text) return false;
+    SITE_TEXT = { en: text.en || {}, lv: text.lv || {}, nl: text.nl || {} };
+    return Object.values(SITE_TEXT).some((o) => Object.keys(o).length);
+  } catch {
+    return false; // overrides are optional
+  }
+}
+
 function t(key) {
-  return STRINGS[lang][key] ?? STRINGS.en[key] ?? key;
+  return SITE_TEXT[lang]?.[key] ?? STRINGS[lang][key] ?? STRINGS.en[key] ?? key;
+}
+
+// Tab labels live one level down, so they carry a dotted key of their own.
+function sectionTitle(sec) {
+  const key = `sectionTitles.${sec.type}`;
+  return (
+    SITE_TEXT[lang]?.[key] ??
+    STRINGS[lang].sectionTitles?.[sec.type] ??
+    STRINGS.en.sectionTitles?.[sec.type] ??
+    sec.title
+  );
+}
+
+// Every editable string, with nested section titles flattened to "a.b".
+function textKeys() {
+  const out = [];
+  for (const [k, v] of Object.entries(STRINGS.en)) {
+    if (typeof v === "string") out.push(k);
+    else if (v && typeof v === "object") for (const sub of Object.keys(v)) out.push(`${k}.${sub}`);
+  }
+  return out.sort();
+}
+
+function defaultText(key, forLang) {
+  const [a, b] = key.split(".");
+  const pick = (src) => (b ? src?.[a]?.[b] : src?.[a]);
+  return pick(STRINGS[forLang]) ?? pick(STRINGS.en) ?? "";
 }
 
 function setLang(next) {
@@ -511,6 +559,7 @@ async function renderHome() {
 
   $app.innerHTML = `
     <h1 class="page-title">Zane&rsquo;s Adventures</h1>
+    ${admin ? `<div class="admin-bar"><button class="edit-btn" id="edit-site-text" type="button">${icon("pencil", 14)}<span>${t("siteText")}</span></button></div>` : ""}
     ${admin ? `<div class="strava-strip" id="strava-strip"></div>` : ""}
     ${admin && adventures.length > 1 ? `<p class="drag-hint">${icon("grip", 14)}<span>${t("dragHint")}</span></p>` : ""}
     ${cards}
@@ -518,7 +567,10 @@ async function renderHome() {
   `;
 
   wireBucketList(bucketlist, admin);
-  if (admin) renderStravaStrip();
+  if (admin) {
+    renderStravaStrip();
+    document.getElementById("edit-site-text")?.addEventListener("click", openTextEditor);
+  }
 
   if (admin) {
     // Each group drags on its own, but the order saved is global (see
@@ -547,6 +599,91 @@ function feedGroupHtml(kind, items, admin) {
       <div class="adventure-list" data-feed-list>${items.map((a) => adventureCardHtml(a, admin)).join("")}</div>
     </section>
   `;
+}
+
+// Rewrite any of the app's own wording, one language at a time. Only the rows
+// currently on screen are saved, so filtering first keeps an edit narrow.
+function openTextEditor() {
+  let editing = lang;
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal modal-wide">
+      <h2>${t("siteText")}</h2>
+      <div class="text-editor-head">
+        <div class="lang-switch" id="text-lang">
+          ${["en", "lv", "nl"].map((l) => `<button type="button" data-tl="${l}">${l.toUpperCase()}</button>`).join("")}
+        </div>
+        <input type="search" id="text-filter" placeholder="${t("filterText")}" />
+      </div>
+      <p class="edit-hint">${t("siteTextHint")}</p>
+      <div class="text-rows" id="text-rows"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline btn-block" id="cancel-modal">${t("cancel")}</button>
+        <button type="button" class="btn btn-block" id="save-text">${t("save")}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  const rowsEl = overlay.querySelector("#text-rows");
+  const filterEl = overlay.querySelector("#text-filter");
+
+  const drawRows = () => {
+    const q = filterEl.value.trim().toLowerCase();
+    rowsEl.innerHTML = textKeys()
+      .filter((k) => !q || k.toLowerCase().includes(q) || String(defaultText(k, editing)).toLowerCase().includes(q))
+      .map((k) => {
+        const overridden = SITE_TEXT[editing]?.[k] !== undefined;
+        const current = overridden ? SITE_TEXT[editing][k] : defaultText(k, editing);
+        return `<label class="text-row${overridden ? " overridden" : ""}" data-key="${escapeHtml(k)}">
+            <span class="text-key">${escapeHtml(k)}</span>
+            <textarea rows="1">${escapeHtml(current)}</textarea>
+          </label>`;
+      })
+      .join("");
+  };
+
+  const markLang = () => {
+    overlay.querySelectorAll("[data-tl]").forEach((b) => b.classList.toggle("active", b.dataset.tl === editing));
+  };
+
+  markLang();
+  drawRows();
+
+  overlay.querySelector("#text-lang").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-tl]");
+    if (!btn || btn.dataset.tl === editing) return;
+    editing = btn.dataset.tl;
+    markLang();
+    drawRows();
+  });
+
+  filterEl.addEventListener("input", drawRows);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector("#cancel-modal").addEventListener("click", () => overlay.remove());
+
+  overlay.querySelector("#save-text").addEventListener("click", async () => {
+    const values = {};
+    rowsEl.querySelectorAll(".text-row").forEach((row) => {
+      const key = row.dataset.key;
+      const value = row.querySelector("textarea").value;
+      const fallback = defaultText(key, editing) ?? "";
+      if (value !== fallback) values[key] = value;
+      // Back at the default: drop any override that was stored for it.
+      else if (SITE_TEXT[editing]?.[key] !== undefined) values[key] = "";
+    });
+
+    try {
+      await api("site-text", { method: "PUT", body: JSON.stringify({ lang: editing, values }) });
+      await loadSiteText();
+      overlay.remove();
+      toast(t("savedToast"));
+      render();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
 }
 
 // Admin-only status line for the Strava connection: connect, sync, disconnect.
@@ -1191,13 +1328,28 @@ async function openActivityPicker(slug) {
 // edit or uploading a photo) keeps you where you were.
 let activeTab = { slug: null, type: null };
 
-function resolveActiveTab(adventure) {
-  const types = adventure.sections.map((sec) => sec.type);
+function sectionHasContent(sec) {
+  const anyText = [sec.body, sec.body_lv, sec.body_nl].some((v) => (v || "").trim());
+  return anyText || (sec.photos || []).length > 0;
+}
+
+// A finished trip has no use for an empty Preparation or Plan tab. Visitors
+// only see the tabs that hold something; admin keeps all of them, so content
+// can still be added to a tab nobody else can see yet.
+function visibleSections(adventure, admin) {
+  if (admin || adventure.status !== "completed") return adventure.sections;
+  const filled = adventure.sections.filter(sectionHasContent);
+  // Never strip an adventure down to no tabs at all.
+  return filled.length ? filled : adventure.sections.slice(-1);
+}
+
+function resolveActiveTab(adventure, sections) {
+  const types = sections.map((sec) => sec.type);
   if (activeTab.slug === adventure.slug && types.includes(activeTab.type)) {
     return activeTab.type;
   }
   // Opening fresh: land on the first tab that actually has something in it.
-  const withContent = adventure.sections.find((sec) => (localized(sec, "body") || "").trim());
+  const withContent = sections.find((sec) => (localized(sec, "body") || "").trim());
   return withContent ? withContent.type : types[0];
 }
 
@@ -1218,14 +1370,17 @@ async function renderAdventure(slug) {
     ? `<img src="/photos/${encodeURIComponent(adventure.cover_key)}" alt="" />`
     : "";
   const summary = localized(adventure, "summary");
-  activeTab = { slug: adventure.slug, type: resolveActiveTab(adventure) };
+  const shown = visibleSections(adventure, admin);
+  activeTab = { slug: adventure.slug, type: resolveActiveTab(adventure, shown) };
 
-  const tabs = adventure.sections
+  const tabs = shown
     .map((sec) => {
       const meta = SECTION_META[sec.type] || { icon: "map" };
-      const label = t("sectionTitles")[sec.type] || sec.title;
+      const label = sectionTitle(sec);
       const on = sec.type === activeTab.type;
-      return `<button class="cover-tab${on ? " active" : ""}" data-tab="${sec.type}" type="button" aria-selected="${on}">
+      // Admin sees every tab; mark the ones visitors won't get.
+      const hidden = admin && adventure.status === "completed" && !sectionHasContent(sec);
+      return `<button class="cover-tab${on ? " active" : ""}${hidden ? " hidden-public" : ""}" data-tab="${sec.type}" type="button" aria-selected="${on}">
         ${icon(meta.icon, 15)}<span>${escapeHtml(label)}</span>
       </button>`;
     })
@@ -1339,7 +1494,7 @@ function renderActiveSection(adventure, admin) {
 
 function sectionHtml(s, admin, adventure) {
   const meta = SECTION_META[s.type] || { icon: "map" };
-  const title = t("sectionTitles")[s.type] || s.title;
+  const title = sectionTitle(s);
   const body = localized(s, "body");
   const bodyHtml = body
     ? `<div class="section-body" data-view>${mdToHtml(body)}</div>`
@@ -1351,7 +1506,7 @@ function sectionHtml(s, admin, adventure) {
   if (POST_SECTIONS.has(s.type)) {
     media = postFeedHtml(s, admin);
   } else {
-    const photos = s.photos.map((p) => `<img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />`).join("");
+    const photos = s.photos.map((p) => `<img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(localized(p, "caption") || "")}" loading="lazy" />`).join("");
     const addTile = admin ? `<div class="photo-add-tile" data-add-photo="${s.type}">${icon("plus", 22)}</div>` : "";
     media = (s.photos.length || admin) ? `<div class="photo-strip">${photos}${addTile}</div>` : "";
   }
@@ -1406,11 +1561,12 @@ function postFeedHtml(s, admin) {
 }
 
 function postHtml(p, admin) {
+  const caption = localized(p, "caption") || "";
   return `
     <article class="post" data-photo-id="${p.id}">
-      <img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(p.caption || "")}" loading="lazy" />
+      <img src="/photos/${encodeURIComponent(p.r2_key)}" alt="${escapeHtml(caption)}" loading="lazy" />
       <div class="post-body">
-        ${p.caption ? `<p class="post-caption">${escapeHtml(p.caption)}</p>` : ""}
+        ${caption ? `<p class="post-caption">${escapeHtml(caption)}</p>` : ""}
         <div class="post-foot">
           <span class="post-time">${escapeHtml(relativeTime(p.created_at))}</span>
           ${admin ? `<span class="post-actions">
@@ -1524,10 +1680,12 @@ function wireSection(slug, section, admin) {
     card.querySelectorAll("[data-post-edit]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = btn.closest(".post").dataset.photoId;
-        const next = prompt(t("captionPrompt"), photoById.get(id)?.caption || "");
+        // Edit the language you're reading in; English also re-translates.
+        const field = lang === "en" ? "caption" : `caption_${lang}`;
+        const next = prompt(t("captionPrompt"), photoById.get(id)?.[field] || "");
         if (next === null) return; // cancelled, as distinct from cleared
         try {
-          await api(`photos/${id}`, { method: "PATCH", body: JSON.stringify({ caption: next }) });
+          await api(`photos/${id}`, { method: "PATCH", body: JSON.stringify({ caption: next, lang }) });
           toast(t("savedToast"));
           renderAdventure(slug);
         } catch (err) {
@@ -1606,3 +1764,4 @@ if (stravaResult) {
 
 updateLangSwitch();
 render();
+loadSiteText().then((hasOverrides) => { if (hasOverrides) render(); });

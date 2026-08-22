@@ -81,6 +81,40 @@ async function getAdventureBySlug(env, slug) {
   };
 }
 
+// Captions are authored in English; Workers AI fills in the other two so a
+// photo reads in every language. A failed translation leaves the column empty,
+// and the frontend falls back to the English text.
+const TRANSLATE_MODEL = "@cf/meta/m2m100-1.2b";
+const CAPTION_LANGS = ["lv", "nl"];
+
+async function translateCaption(env, text) {
+  const source = String(text || "").trim();
+  const out = { lv: "", nl: "" };
+  if (!source || !env.AI) return out;
+
+  for (const target of CAPTION_LANGS) {
+    try {
+      const res = await env.AI.run(TRANSLATE_MODEL, {
+        text: source,
+        source_lang: "en",
+        target_lang: target,
+      });
+      out[target] = String(res?.translated_text || "").trim().slice(0, 200);
+    } catch {
+      // Model unavailable or over quota — leave it blank rather than fail.
+    }
+  }
+  return out;
+}
+
+async function storeCaptionTranslations(env, photoId, text) {
+  const { lv, nl } = await translateCaption(env, text);
+  if (!lv && !nl) return;
+  await env.DB.prepare("UPDATE photos SET caption_lv = ?, caption_nl = ? WHERE id = ?")
+    .bind(lv, nl, photoId)
+    .run();
+}
+
 // ---------------------------------------------------------------- Strava --
 // Garmin Connect syncs activities to Strava; Strava pushes them here. We keep
 // one athlete's tokens (row id = 1) and a downsampled copy of each track.
@@ -436,6 +470,11 @@ async function handleApi(request, env, url, ctx) {
       await env.DB.prepare("UPDATE adventures SET cover_key = ? WHERE id = ?").bind(key, adventure.id).run();
     }
 
+    // Translating takes a moment; don't hold up the upload response for it.
+    if (caption.trim()) {
+      ctx?.waitUntil(storeCaptionTranslations(env, result.meta.last_row_id, caption));
+    }
+
     const photo = await env.DB.prepare("SELECT * FROM photos WHERE id = ?").bind(result.meta.last_row_id).first();
     return json({ photo }, { status: 201 });
   }
@@ -447,9 +486,15 @@ async function handleApi(request, env, url, ctx) {
     const body = await request.json().catch(() => ({}));
     if (typeof body.caption !== "string") return json({ error: "caption required" }, { status: 400 });
 
-    await env.DB.prepare("UPDATE photos SET caption = ? WHERE id = ?")
-      .bind(body.caption.trim().slice(0, 200), parts[1])
-      .run();
+    // Edits target the language being viewed, matching how section bodies and
+    // summaries already work. Only the English one drives a re-translation.
+    const column = { en: "caption", lv: "caption_lv", nl: "caption_nl" }[body.lang] || "caption";
+    const text = body.caption.trim().slice(0, 200);
+
+    await env.DB.prepare(`UPDATE photos SET ${column} = ? WHERE id = ?`).bind(text, parts[1]).run();
+    if (column === "caption" && text) {
+      ctx?.waitUntil(storeCaptionTranslations(env, parts[1], text));
+    }
     return json({ ok: true });
   }
 
@@ -790,6 +835,54 @@ async function handleApi(request, env, url, ctx) {
     if (denied) return denied;
     await env.DB.prepare("UPDATE activities SET adventure_id = NULL WHERE id = ?").bind(parts[1]).run();
     return json({ ok: true });
+  }
+
+  // ---- Editable site wording ----
+
+  // GET /api/site-text — public: the app needs it to render
+  if (method === "GET" && parts.length === 1 && parts[0] === "site-text") {
+    const text = { en: {}, lv: {}, nl: {} };
+    try {
+      const { results } = await env.DB.prepare("SELECT key, lang, value FROM site_text").all();
+      for (const row of results) {
+        if (text[row.lang]) text[row.lang][row.key] = row.value;
+      }
+    } catch {
+      // Table arrives in migration 0009; no overrides is a valid answer.
+    }
+    return json({ text });
+  }
+
+  // PUT /api/site-text  (admin) — { lang, values: { key: value } }.
+  // An empty value removes the override, restoring the built-in wording.
+  if (method === "PUT" && parts.length === 1 && parts[0] === "site-text") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const body = await request.json().catch(() => ({}));
+    const lang = ["en", "lv", "nl"].includes(body.lang) ? body.lang : null;
+    if (!lang) return json({ error: "lang must be en, lv or nl" }, { status: 400 });
+    if (!body.values || typeof body.values !== "object") {
+      return json({ error: "values required" }, { status: 400 });
+    }
+
+    const entries = Object.entries(body.values).slice(0, 400);
+    if (!entries.length) return json({ ok: true, changed: 0 });
+
+    await env.DB.batch(
+      entries.map(([key, value]) => {
+        const text = String(value ?? "").slice(0, 600);
+        return text
+          ? env.DB.prepare(
+              `INSERT INTO site_text (key, lang, value, updated_at)
+               VALUES (?, ?, ?, datetime('now'))
+               ON CONFLICT(key, lang) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+            ).bind(String(key).slice(0, 80), lang, text)
+          : env.DB.prepare("DELETE FROM site_text WHERE key = ? AND lang = ?").bind(String(key).slice(0, 80), lang);
+      })
+    );
+
+    return json({ ok: true, changed: entries.length });
   }
 
   // POST /api/admin/verify

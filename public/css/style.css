@@ -1469,3 +1469,91 @@ img {
   font-size: 0.76rem;
   color: var(--color-muted);
 }
+
+/* ---------- Admin bar + site-text editor ---------- */
+.admin-bar {
+  display: flex;
+  gap: 8px;
+  margin: -8px 0 10px;
+}
+
+.admin-bar .edit-btn {
+  padding: 4px 10px;
+  font-size: 0.74rem;
+}
+
+/* A tab that visitors don't get, because the trip is done and it's empty. */
+.cover-tab.hidden-public {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.modal-wide {
+  max-width: 640px;
+}
+
+.text-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.text-editor-head input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 11px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+}
+
+.text-rows {
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 2px 2px 4px;
+  margin-bottom: 14px;
+}
+
+.text-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.text-key {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.text-row textarea {
+  width: 100%;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+  resize: vertical;
+  field-sizing: content;
+}
+
+/* Rewritten strings are flagged so it's obvious what's been changed. */
+.text-row.overridden .text-key {
+  color: var(--color-accent);
+}
+
+.text-row.overridden textarea {
+  border-color: var(--color-accent);
+}
