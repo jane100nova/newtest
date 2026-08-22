@@ -148,10 +148,10 @@ so the watch never talks to this site directly. Set it up once:
    under the title. Tap **Connect** and approve on Strava. You'll be sent
    back and the strip will show your name.
 
-5. **Backfill and automate.** **Sync recent** imports your last 10
-   activities (tap again for older ones). **Auto-sync** registers a
-   webhook so future activities arrive on their own, within seconds of
-   Garmin uploading them.
+5. **Backfill and automate.** **Sync recent** imports 10 activities at a
+   time, walking further back on each tap until it runs out. **Auto-sync**
+   registers a webhook so future activities arrive on their own, within
+   seconds of Garmin uploading them.
 
 6. **Attach a track to an adventure.** Open the adventure in admin mode
    and use **Link activity** under Route. Link several for a multi-day

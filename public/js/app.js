@@ -107,7 +107,7 @@ const STRINGS = {
     noRoute: "No route yet \u2014 link a Strava activity to draw one.",
     stravaSync: "Sync recent", stravaConnect: "Connect", stravaDisconnect: "Disconnect",
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync enabled",
-    siteText: "Site text", filterText: "Filter\u2026",
+    siteText: "Site text", filterText: "Filter\u2026", stravaMore: "tap again for older",
     siteTextHint: "Rewrite any wording that reads badly. Empty a field to restore the built-in text.",
     stravaNotConfigured: "Strava keys aren't set on the Worker yet.",
     stravaConnectedToast: "Strava connected", stravaFailedToast: "Strava connection failed",
@@ -175,7 +175,7 @@ const STRINGS = {
     noRoute: "Vēl nav maršruta \u2014 piesaisti Strava aktivitāti.",
     stravaSync: "Sinhronizēt", stravaConnect: "Savienot", stravaDisconnect: "Atvienot",
     stravaAutoSync: "Auto-sinhronizācija", autoSyncOn: "Auto-sinhronizācija ieslēgta",
-    siteText: "Vietnes teksti", filterText: "Filtrēt\u2026",
+    siteText: "Vietnes teksti", filterText: "Filtrēt\u2026", stravaMore: "spied vēlreiz vecākiem",
     siteTextHint: "Pārraksti jebkuru frāzi. Iztukšo lauku, lai atjaunotu sākotnējo tekstu.",
     stravaNotConfigured: "Strava atslēgas vēl nav iestatītas.",
     stravaConnectedToast: "Strava savienota", stravaFailedToast: "Neizdevās savienot Strava",
@@ -243,7 +243,7 @@ const STRINGS = {
     noRoute: "Nog geen route \u2014 koppel een Strava-activiteit.",
     stravaSync: "Synchroniseren", stravaConnect: "Verbinden", stravaDisconnect: "Verbreken",
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync ingeschakeld",
-    siteText: "Sitetekst", filterText: "Filteren\u2026",
+    siteText: "Sitetekst", filterText: "Filteren\u2026", stravaMore: "tik nogmaals voor oudere",
     siteTextHint: "Herschrijf teksten die niet lekker lopen. Leeg een veld om de standaardtekst te herstellen.",
     stravaNotConfigured: "Strava-sleutels staan nog niet op de Worker.",
     stravaConnectedToast: "Strava verbonden", stravaFailedToast: "Verbinden met Strava mislukt",
@@ -687,6 +687,8 @@ function openTextEditor() {
 }
 
 // Admin-only status line for the Strava connection: connect, sync, disconnect.
+let stravaSyncPage = 1;
+
 async function renderStravaStrip() {
   const el = document.getElementById("strava-strip");
   if (!el) return;
@@ -724,10 +726,15 @@ async function renderStravaStrip() {
   });
 
   el.querySelector("#strava-sync")?.addEventListener("click", async () => {
-    toast(t("syncing"));
+    toast(`${t("syncing")} (${stravaSyncPage})`);
     try {
-      const { imported } = await api("strava/sync", { method: "POST", body: JSON.stringify({ page: 1 }) });
-      toast(`${t("savedToast")} · ${imported}`);
+      const { imported, more } = await api("strava/sync", {
+        method: "POST",
+        body: JSON.stringify({ page: stravaSyncPage }),
+      });
+      // Walk further back on each tap; start over once history runs out.
+      stravaSyncPage = more ? stravaSyncPage + 1 : 1;
+      toast(more ? `${t("savedToast")} · ${imported} · ${t("stravaMore")}` : `${t("savedToast")} · ${imported}`);
       renderStravaStrip();
     } catch (err) {
       toast(err.message);
