@@ -1579,3 +1579,98 @@ img {
   align-self: center;
   padding: 6px 9px;
 }
+
+/* ---------- Training activities (Preparation tab) ---------- */
+.training-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.training-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.training-head h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.training-head h4 .icon {
+  color: var(--color-accent);
+}
+
+.training-total {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.training-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.training-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.tr-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tr-date {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  flex: none;
+}
+
+.tr-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tr-stats {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.tr-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tr-actions .edit-btn {
+  padding: 3px 9px;
+  font-size: 0.7rem;
+}
+
+/* The route panel now sits inside a tab, so it shouldn't float on its own. */
+.section-card .route-panel {
+  margin: 16px 0 0;
+  box-shadow: none;
+}

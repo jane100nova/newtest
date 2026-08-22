@@ -805,7 +805,7 @@ async function handleApi(request, env, url, ctx) {
 
     const { results } = await env.DB.prepare(
       `SELECT a.id, a.name, a.sport_type, a.start_date, a.distance_m, a.ascent_m,
-              a.source, a.adventure_id, v.title AS adventure_title
+              a.source, a.section_type, a.adventure_id, v.title AS adventure_title
        FROM activities a
        LEFT JOIN adventures v ON v.id = a.adventure_id
        ORDER BY a.start_date DESC LIMIT 50`
@@ -825,7 +825,11 @@ async function handleApi(request, env, url, ctx) {
     const id = Number(body.activity_id);
     if (!id) return json({ error: "activity_id required" }, { status: 400 });
 
-    await env.DB.prepare("UPDATE activities SET adventure_id = ? WHERE id = ?").bind(adventure.id, id).run();
+    // Doubles as "move": re-posting with a different section_type reassigns it.
+    const section = body.section_type === "prepare" ? "prepare" : "experience";
+    await env.DB.prepare("UPDATE activities SET adventure_id = ?, section_type = ? WHERE id = ?")
+      .bind(adventure.id, section, id)
+      .run();
     return json({ ok: true });
   }
 
@@ -842,19 +846,21 @@ async function handleApi(request, env, url, ctx) {
 
     const numOrNull = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
     const num = (v) => Number(v) || 0;
+    const section = body.section_type === "prepare" ? "prepare" : "experience";
 
     // Uploads count down from -1, keeping clear of Strava's positive ids.
     const low = await env.DB.prepare("SELECT MIN(id) AS m FROM activities WHERE id < 0").first();
     const id = Math.min(-1, (low?.m ?? 0) - 1);
 
     await env.DB.prepare(
-      `INSERT INTO activities (id, source, name, sport_type, start_date, moving_time,
+      `INSERT INTO activities (id, source, section_type, name, sport_type, start_date, moving_time,
          elapsed_time, distance_m, ascent_m, elev_high, elev_low, average_speed,
          max_speed, average_heartrate, max_heartrate, track, synced_at)
-       VALUES (?, 'upload', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+       VALUES (?, 'upload', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
     )
       .bind(
         id,
+        section,
         String(body.name || "Untitled activity").slice(0, 120),
         String(body.sport_type || "").slice(0, 40),
         String(body.start_date || "").slice(0, 40),

@@ -109,6 +109,8 @@ const STRINGS = {
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync enabled",
     siteText: "Site text", filterText: "Filter\u2026", stravaMore: "tap again for older",
     uploadTrack: "Upload GPX / TCX", readingFile: "Reading file\u2026",
+    training: "Training", noTraining: "No training activities yet.",
+    addTraining: "Add training activity", addRoute: "Add the route", move: "Move",
     badTrackFile: "Couldn't read that file \u2014 GPX or TCX only.",
     deleteActivityConfirm: "Delete this uploaded activity?",
     siteTextHint: "Rewrite any wording that reads badly. Empty a field to restore the built-in text.",
@@ -180,6 +182,8 @@ const STRINGS = {
     stravaAutoSync: "Auto-sinhronizācija", autoSyncOn: "Auto-sinhronizācija ieslēgta",
     siteText: "Vietnes teksti", filterText: "Filtrēt\u2026", stravaMore: "spied vēlreiz vecākiem",
     uploadTrack: "Augšupielādēt GPX / TCX", readingFile: "Nolasa failu\u2026",
+    training: "Treniņi", noTraining: "Vēl nav treniņu.",
+    addTraining: "Pievienot treniņu", addRoute: "Pievienot maršrutu", move: "Pārvietot",
     badTrackFile: "Neizdevās nolasīt failu \u2014 tikai GPX vai TCX.",
     deleteActivityConfirm: "Dzēst šo augšupielādēto aktivitāti?",
     siteTextHint: "Pārraksti jebkuru frāzi. Iztukšo lauku, lai atjaunotu sākotnējo tekstu.",
@@ -251,6 +255,8 @@ const STRINGS = {
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync ingeschakeld",
     siteText: "Sitetekst", filterText: "Filteren\u2026", stravaMore: "tik nogmaals voor oudere",
     uploadTrack: "GPX / TCX uploaden", readingFile: "Bestand lezen\u2026",
+    training: "Training", noTraining: "Nog geen trainingen.",
+    addTraining: "Training toevoegen", addRoute: "Route toevoegen", move: "Verplaatsen",
     badTrackFile: "Kon dat bestand niet lezen \u2014 alleen GPX of TCX.",
     deleteActivityConfirm: "Deze geüploade activiteit verwijderen?",
     siteTextHint: "Herschrijf teksten die niet lekker lopen. Leeg een veld om de standaardtekst te herstellen.",
@@ -1174,14 +1180,50 @@ function readoutHtml(p) {
     .join('<span class="sep">·</span>');
 }
 
-function routePanelHtml(adventure, admin) {
-  const activities = adventure.activities || [];
+// A training run belongs to Preparation; the trip itself to Live updates.
+function activitiesFor(adventure, sectionType) {
+  return (adventure.activities || [])
+    .filter((a) => (a.section_type || "experience") === sectionType);
+}
+
+// Compact list for Preparation: a training run doesn't need its own map, it
+// needs to add up with the others.
+function trainingBlockHtml(adventure, admin) {
+  const acts = activitiesFor(adventure, "prepare")
+    .slice()
+    .sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)));
+  if (!acts.length && !admin) return "";
+
+  const s = routeStats(acts);
+  return `
+    <div class="training-block">
+      <div class="training-head">
+        <h4>${icon("activity", 16)}<span>${t("training")}</span></h4>
+        ${acts.length ? `<span class="training-total">${acts.length}<span class="sep">·</span>${fmtKm(s.distance)}<span class="sep">·</span>${fmtM(s.ascent)}</span>` : ""}
+      </div>
+      ${acts.length
+        ? `<ul class="training-list">${acts.map((a) => `
+            <li data-activity-id="${a.id}">
+              <span class="tr-top"><span class="tr-date">${escapeHtml(String(a.start_date).slice(0, 10))}</span><span class="tr-name">${escapeHtml(a.name || "")}</span></span>
+              <span class="tr-stats">${fmtKm(a.distance_m)}<span class="sep">·</span>${fmtM(a.ascent_m)}<span class="sep">·</span>${fmtDuration(a.moving_time)}${a.average_heartrate ? `<span class="sep">·</span>${Math.round(a.average_heartrate)} bpm` : ""}</span>
+              ${admin ? `<span class="tr-actions">
+                <button class="edit-btn" data-move="experience" type="button">${t("move")}</button>
+                <button class="edit-btn danger" data-unlink type="button">${t("unlink")}</button>
+              </span>` : ""}
+            </li>`).join("")}</ul>`
+        : `<p class="route-empty">${t("noTraining")}</p>`}
+      ${admin ? `<button class="btn btn-outline btn-block" data-add-activity="prepare" type="button">${icon("plus", 15)}<span>${t("addTraining")}</span></button>` : ""}
+    </div>`;
+}
+
+function routePanelHtml(adventure, admin, sectionType = "experience") {
+  const activities = activitiesFor(adventure, sectionType);
   if (!activities.length && !admin) return "";
 
   const head = `
     <div class="route-head">
       <h3>${icon("map", 18)}<span>${t("route")}</span></h3>
-      ${admin ? `<button class="btn btn-outline btn-small" id="link-activity" type="button">${icon("plus", 15)}<span>${t("linkActivity")}</span></button>` : ""}
+      ${admin ? `<button class="btn btn-outline btn-small" data-add-activity="${sectionType}" type="button">${icon("plus", 15)}<span>${t("addRoute")}</span></button>` : ""}
     </div>`;
 
   if (!activities.length) {
@@ -1212,17 +1254,19 @@ function routePanelHtml(adventure, admin) {
       </div>
       ${admin ? `<ul class="route-activities">${activities
         .map((a) => `<li data-activity-id="${a.id}"><span>${escapeHtml(a.name || "")}</span>
-          <button class="edit-btn danger" data-unlink type="button">${escapeHtml(t("unlink"))}</button></li>`)
+          <span class="tr-actions">
+            <button class="edit-btn" data-move="prepare" type="button">${escapeHtml(t("move"))}</button>
+            <button class="edit-btn danger" data-unlink type="button">${escapeHtml(t("unlink"))}</button>
+          </span></li>`)
         .join("")}</ul>` : ""}
     </section>`;
 }
 
-function wireRoutePanel(adventure, admin) {
+function wireRoutePanel(adventure, admin, sectionType = "experience") {
   const panel = document.querySelector(".route-panel");
   if (!panel) return;
 
-  const activities = adventure.activities || [];
-  const { legs, points } = routeSeries(activities);
+  const { legs, points } = routeSeries(activitiesFor(adventure, sectionType));
   let marker = null;
 
   // Leaflet comes from a CDN. If it didn't load, the profile and stats still
@@ -1275,11 +1319,34 @@ function wireRoutePanel(adventure, admin) {
     });
   }
 
-  if (!admin) return;
+}
 
-  document.getElementById("link-activity")?.addEventListener("click", () => openActivityPicker(adventure.slug));
+// Shared by the route panel and the training list: add, move between sections,
+// and unlink. Called after whichever section has just been rendered.
+function wireActivityControls(root, adventure) {
+  root.querySelectorAll("[data-add-activity]").forEach((btn) => {
+    btn.addEventListener("click", () => openActivityPicker(adventure.slug, btn.dataset.addActivity));
+  });
 
-  panel.querySelectorAll("[data-unlink]").forEach((btn) => {
+  root.querySelectorAll("[data-move]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await api(`adventures/${adventure.slug}/activities`, {
+          method: "POST",
+          body: JSON.stringify({
+            activity_id: Number(btn.closest("li").dataset.activityId),
+            section_type: btn.dataset.move,
+          }),
+        });
+        toast(t("savedToast"));
+        renderAdventure(adventure.slug);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  });
+
+  root.querySelectorAll("[data-unlink]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
         await api(`activities/${btn.closest("li").dataset.activityId}`, { method: "DELETE" });
@@ -1306,6 +1373,25 @@ function haversine(a, b) {
     Math.sin(dLat / 2) ** 2 +
     Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// Moving average over a small window, used only for measuring distance —
+// the points drawn on the map stay exactly where they were recorded.
+// Window of 9 (about 9 seconds at 1 Hz) measured within 0.5% of a synthetic
+// track of known length; wider windows start cutting corners on switchbacks.
+function smoothCoords(points, window = 9) {
+  const half = Math.floor(window / 2);
+  return points.map((_, i) => {
+    let lat = 0;
+    let lng = 0;
+    let n = 0;
+    for (let j = Math.max(0, i - half); j <= Math.min(points.length - 1, i + half); j++) {
+      lat += points[j].lat;
+      lng += points[j].lng;
+      n++;
+    }
+    return { lat: lat / n, lng: lng / n };
+  });
 }
 
 async function parseTrackFile(file) {
@@ -1359,12 +1445,18 @@ async function parseTrackFile(file) {
 
   if (raw.length < 2) throw new Error(t("badTrackFile"));
 
-  // TCX carries cumulative distance; GPX doesn't, so measure it.
+  // TCX states cumulative distance; GPX doesn't, so it has to be measured —
+  // and a naive point-to-point sum overshoots badly. GPS noise sideways to the
+  // direction of travel lengthens every single segment, which compounds over
+  // thousands of points. Averaging the coordinates over a short window first
+  // cancels most of it. TCX needs none of this: Garmin already did it.
   const hasDistance = raw.some((p) => p.d != null);
+  const measure = hasDistance ? raw : smoothCoords(raw);
+
   let cum = 0;
   for (let i = 0; i < raw.length; i++) {
     if (hasDistance && raw[i].d != null) cum = raw[i].d;
-    else if (i > 0) cum += haversine(raw[i - 1], raw[i]);
+    else if (i > 0) cum += haversine(measure[i - 1], measure[i]);
     raw[i].dist = cum;
   }
 
@@ -1450,7 +1542,7 @@ async function parseTrackFile(file) {
 }
 
 // Picks a file, parses it here, stores it, and attaches it to the adventure.
-function uploadTrackFile(slug, onDone) {
+function uploadTrackFile(slug, sectionType, onDone) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = ".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,text/xml,application/xml";
@@ -1460,8 +1552,14 @@ function uploadTrackFile(slug, onDone) {
     toast(t("readingFile"));
     try {
       const parsed = await parseTrackFile(file);
-      const { id } = await api("activities/import", { method: "POST", body: JSON.stringify(parsed) });
-      await api(`adventures/${slug}/activities`, { method: "POST", body: JSON.stringify({ activity_id: id }) });
+      const { id } = await api("activities/import", {
+        method: "POST",
+        body: JSON.stringify({ ...parsed, section_type: sectionType }),
+      });
+      await api(`adventures/${slug}/activities`, {
+        method: "POST",
+        body: JSON.stringify({ activity_id: id, section_type: sectionType }),
+      });
       toast(`${t("savedToast")} · ${fmtKm(parsed.distance_m)}`);
       onDone?.();
     } catch (err) {
@@ -1471,7 +1569,7 @@ function uploadTrackFile(slug, onDone) {
   input.click();
 }
 
-async function openActivityPicker(slug) {
+async function openActivityPicker(slug, sectionType = "experience") {
   let activities = [];
   try {
     ({ activities } = await api("activities"));
@@ -1502,7 +1600,7 @@ async function openActivityPicker(slug) {
   overlay.querySelector("#cancel-modal").addEventListener("click", () => overlay.remove());
 
   overlay.querySelector("#upload-track").addEventListener("click", () => {
-    uploadTrackFile(slug, () => {
+    uploadTrackFile(slug, sectionType, () => {
       overlay.remove();
       renderAdventure(slug);
     });
@@ -1527,7 +1625,7 @@ async function openActivityPicker(slug) {
       try {
         await api(`adventures/${slug}/activities`, {
           method: "POST",
-          body: JSON.stringify({ activity_id: Number(btn.dataset.pick) }),
+          body: JSON.stringify({ activity_id: Number(btn.dataset.pick), section_type: sectionType }),
         });
         overlay.remove();
         toast(t("savedToast"));
@@ -1620,8 +1718,6 @@ async function renderAdventure(slug) {
       ${adventure.source_url ? `<a class="source-link" href="${escapeHtml(adventure.source_url)}" target="_blank" rel="noopener"><span>${t("viewOriginalPlan")}</span>${icon("externalLink", 14)}</a>` : ""}
     </div>
 
-    ${routePanelHtml(adventure, admin)}
-
     <div class="action-row">
       <div class="reactions" id="reactions"></div>
       <button class="btn btn-outline btn-small" id="share-btn">${icon("share", 16)}<span>${t("share")}</span></button>
@@ -1641,7 +1737,6 @@ async function renderAdventure(slug) {
   `;
 
   renderReactions(adventure);
-  wireRoutePanel(adventure, admin);
   renderActiveSection(adventure, admin);
   renderComments(adventure.comments);
 
@@ -1704,6 +1799,8 @@ function renderActiveSection(adventure, admin) {
   }
   el.innerHTML = sectionHtml(section, admin, adventure);
   wireSection(adventure.slug, section, admin);
+  if (section.type === "experience") wireRoutePanel(adventure, admin, "experience");
+  if (admin) wireActivityControls(el, adventure);
   // Setting the departure date lives in the adventure form; make the empty
   // countdown a way in, rather than a dead end telling you to go find it.
   el.querySelector("[data-set-depart]")?.addEventListener("click", () => openAdventureModal(adventure));
@@ -1736,6 +1833,8 @@ function sectionHtml(s, admin, adventure) {
       </div>` : ""}
       ${s.type === "prepare" ? countdownHtml(adventure, admin) : ""}
       ${bodyHtml}
+      ${s.type === "prepare" ? trainingBlockHtml(adventure, admin) : ""}
+      ${s.type === "experience" ? routePanelHtml(adventure, admin, "experience") : ""}
       ${media}
     </div>
   `;

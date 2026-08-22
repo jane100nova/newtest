@@ -76,6 +76,7 @@ You can do this either in the **dashboard** or with **wrangler CLI**
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0009_site_text.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0010_caption_translations.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0011_activity_source.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0012_activity_section.sql
    ```
    They can also be pasted into the D1 **Console** tab in the dashboard.
 
@@ -128,11 +129,25 @@ A route map needs a GPS track. There are two ways to supply one, and they
 land in the same `activities` table, so the Route panel treats them
 identically.
 
+An activity belongs to a **phase** of the adventure, not to the adventure
+as a whole. A training run is Preparation; the trip itself is Live updates.
+Upload from the tab it belongs to, and **Move** reassigns one afterwards.
+
 ### Uploading a file (no accounts, works today)
 
-1. In **Garmin Connect**, open an activity → the ⚙ menu → **Export to GPX**
-   (or **Export to TCX**).
-2. On the adventure, in admin mode: **Link activity** → **Upload GPX / TCX**.
+1. In **Garmin Connect on the web**, open an activity → the ⚙ menu →
+   **Export to TCX** (or GPX). The mobile app can't export, so this is a
+   desktop job — routes are a post-trip upload, not a live feed.
+2. On the adventure, in admin mode: **Add training activity** (Preparation)
+   or **Add the route** (Live updates) → **Upload GPX / TCX**.
+
+**Prefer TCX for accuracy.** It carries Garmin's own distance. GPX carries
+none, so distance is measured from the coordinates — and a naive sum
+overshoots by several percent, because GPS error sideways to your direction
+of travel lengthens every segment. The coordinates are smoothed over a
+9-point window before measuring, which brought a synthetic 10 km track from
++7.8% to +0.4%, but TCX sidesteps the problem entirely. GPX's one advantage
+is that it carries the activity's name.
 
 The file is parsed **in your browser**, not on the server — Cloudflare caps
 CPU per request and a long hike runs to tens of thousands of track points.
