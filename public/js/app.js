@@ -109,7 +109,7 @@ const STRINGS = {
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync enabled",
     siteText: "Site text", filterText: "Filter\u2026", stravaMore: "tap again for older",
     uploadTrack: "Upload GPX / TCX", readingFile: "Reading file\u2026",
-    training: "Training", noTraining: "No training activities yet.",
+    training: "Training", noTraining: "No training activities yet.", showMap: "Map",
     addTraining: "Add training activity", addRoute: "Add the route", move: "Move",
     badTrackFile: "Couldn't read that file \u2014 GPX or TCX only.",
     deleteActivityConfirm: "Delete this uploaded activity?",
@@ -182,7 +182,7 @@ const STRINGS = {
     stravaAutoSync: "Auto-sinhronizācija", autoSyncOn: "Auto-sinhronizācija ieslēgta",
     siteText: "Vietnes teksti", filterText: "Filtrēt\u2026", stravaMore: "spied vēlreiz vecākiem",
     uploadTrack: "Augšupielādēt GPX / TCX", readingFile: "Nolasa failu\u2026",
-    training: "Treniņi", noTraining: "Vēl nav treniņu.",
+    training: "Treniņi", noTraining: "Vēl nav treniņu.", showMap: "Karte",
     addTraining: "Pievienot treniņu", addRoute: "Pievienot maršrutu", move: "Pārvietot",
     badTrackFile: "Neizdevās nolasīt failu \u2014 tikai GPX vai TCX.",
     deleteActivityConfirm: "Dzēst šo augšupielādēto aktivitāti?",
@@ -255,7 +255,7 @@ const STRINGS = {
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync ingeschakeld",
     siteText: "Sitetekst", filterText: "Filteren\u2026", stravaMore: "tik nogmaals voor oudere",
     uploadTrack: "GPX / TCX uploaden", readingFile: "Bestand lezen\u2026",
-    training: "Training", noTraining: "Nog geen trainingen.",
+    training: "Training", noTraining: "Nog geen trainingen.", showMap: "Kaart",
     addTraining: "Training toevoegen", addRoute: "Route toevoegen", move: "Verplaatsen",
     badTrackFile: "Kon dat bestand niet lezen \u2014 alleen GPX of TCX.",
     deleteActivityConfirm: "Deze geüploade activiteit verwijderen?",
@@ -1206,10 +1206,12 @@ function trainingBlockHtml(adventure, admin) {
             <li data-activity-id="${a.id}">
               <span class="tr-top"><span class="tr-date">${escapeHtml(String(a.start_date).slice(0, 10))}</span><span class="tr-name">${escapeHtml(a.name || "")}</span></span>
               <span class="tr-stats">${fmtKm(a.distance_m)}<span class="sep">·</span>${fmtM(a.ascent_m)}<span class="sep">·</span>${fmtDuration(a.moving_time)}${a.average_heartrate ? `<span class="sep">·</span>${Math.round(a.average_heartrate)} bpm` : ""}</span>
-              ${admin ? `<span class="tr-actions">
-                <button class="edit-btn" data-move="experience" type="button">${t("move")}</button>
-                <button class="edit-btn danger" data-unlink type="button">${t("unlink")}</button>
-              </span>` : ""}
+              <span class="tr-actions">
+                ${(a.track || []).length ? `<button class="edit-btn" data-expand type="button">${icon("map", 12)}<span>${t("showMap")}</span></button>` : ""}
+                ${admin ? `<button class="edit-btn" data-move="experience" type="button">${t("move")}</button>
+                <button class="edit-btn danger" data-unlink type="button">${t("unlink")}</button>` : ""}
+              </span>
+              <div class="tr-track" hidden></div>
             </li>`).join("")}</ul>`
         : `<p class="route-empty">${t("noTraining")}</p>`}
       ${admin ? `<button class="btn btn-outline btn-block" data-add-activity="prepare" type="button">${icon("plus", 15)}<span>${t("addTraining")}</span></button>` : ""}
@@ -1238,7 +1240,7 @@ function routePanelHtml(adventure, admin, sectionType = "experience") {
   return `
     <section class="route-panel">
       ${head}
-      ${legs.length ? `<div class="route-map" id="route-map"></div>` : ""}
+      ${legs.length ? `<div class="route-map"></div>` : ""}
       ${points.some((p) => typeof p.ele === "number") ? `
         <div class="route-profile">
           ${profileSvg(points)}
@@ -1262,68 +1264,110 @@ function routePanelHtml(adventure, admin, sectionType = "experience") {
     </section>`;
 }
 
+// Draws a track onto a map element. Leaflet comes from a CDN; if it didn't
+// load, the element is dropped and the profile and stats carry on alone.
+function initTrackMap(mapEl, legs) {
+  if (!mapEl) return null;
+  if (!window.L || !legs.length) {
+    mapEl.remove();
+    return null;
+  }
+
+  const map = L.map(mapEl, { scrollWheelZoom: false });
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
+
+  const drawn = legs.map((leg) => L.polyline(leg, { color: "#d97a3f", weight: 4, opacity: 0.9 }).addTo(map));
+  map.fitBounds(L.featureGroup(drawn).getBounds(), { padding: [18, 18] });
+
+  return L.circleMarker(legs[0][0], {
+    radius: 6, color: "#fff", weight: 2, fillColor: "#1f3d2b", fillOpacity: 1,
+  }).addTo(map);
+}
+
+// Dragging across the elevation profile walks the marker along the map.
+function wireProfileScrub(root, points, marker) {
+  const svg = root.querySelector(".profile-svg");
+  const readout = root.querySelector(".route-readout");
+  if (!svg || !readout) return;
+
+  const pts = points.filter((p) => typeof p.ele === "number");
+  if (!pts.length) return;
+
+  const maxD = pts[pts.length - 1].d || 1;
+  const cursor = svg.querySelector(".profile-cursor");
+
+  const scrub = (clientX) => {
+    const box = svg.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
+    const target = ratio * maxD;
+    let best = pts[0];
+    for (const p of pts) {
+      if (p.d <= target) best = p;
+      else break;
+    }
+    cursor.setAttribute("x1", ratio * PROFILE_W);
+    cursor.setAttribute("x2", ratio * PROFILE_W);
+    cursor.style.display = "";
+    readout.innerHTML = readoutHtml(best);
+    marker?.setLatLng([best.lat, best.lng]);
+  };
+
+  svg.addEventListener("pointerdown", (e) => scrub(e.clientX));
+  svg.addEventListener("pointermove", (e) => { if (e.buttons || e.pointerType !== "mouse") scrub(e.clientX); });
+  svg.addEventListener("pointerleave", () => {
+    cursor.style.display = "none";
+    readout.textContent = t("elevationHint");
+  });
+}
+
+// Map + profile markup for one set of activities, used by the route panel and
+// by an expanded training row alike.
+function trackViewHtml(points) {
+  const hasElevation = points.some((p) => typeof p.ele === "number");
+  return `
+    <div class="route-map"></div>
+    ${hasElevation ? `<div class="route-profile">${profileSvg(points)}<div class="route-readout">${t("elevationHint")}</div></div>` : ""}
+  `;
+}
+
 function wireRoutePanel(adventure, admin, sectionType = "experience") {
   const panel = document.querySelector(".route-panel");
   if (!panel) return;
 
   const { legs, points } = routeSeries(activitiesFor(adventure, sectionType));
-  let marker = null;
-
-  // Leaflet comes from a CDN. If it didn't load, the profile and stats still
-  // work — only the basemap is missing.
-  const mapEl = document.getElementById("route-map");
-  if (mapEl && window.L && legs.length) {
-    const map = L.map(mapEl, { scrollWheelZoom: false });
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
-
-    const drawn = legs.map((leg) => L.polyline(leg, { color: "#d97a3f", weight: 4, opacity: 0.9 }).addTo(map));
-    map.fitBounds(L.featureGroup(drawn).getBounds(), { padding: [18, 18] });
-    marker = L.circleMarker(legs[0][0], {
-      radius: 6, color: "#fff", weight: 2, fillColor: "#1f3d2b", fillOpacity: 1,
-    }).addTo(map);
-  } else if (mapEl) {
-    mapEl.remove();
-  }
-
-  const svg = panel.querySelector(".profile-svg");
-  const readout = panel.querySelector(".route-readout");
-  if (svg && readout) {
-    const pts = points.filter((p) => typeof p.ele === "number");
-    const maxD = pts[pts.length - 1]?.d || 1;
-    const cursor = svg.querySelector(".profile-cursor");
-
-    const scrub = (clientX) => {
-      const box = svg.getBoundingClientRect();
-      const ratio = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
-      const target = ratio * maxD;
-      let best = pts[0];
-      for (const p of pts) {
-        if (p.d <= target) best = p;
-        else break;
-      }
-      cursor.setAttribute("x1", ratio * PROFILE_W);
-      cursor.setAttribute("x2", ratio * PROFILE_W);
-      cursor.style.display = "";
-      readout.innerHTML = readoutHtml(best);
-      marker?.setLatLng([best.lat, best.lng]);
-    };
-
-    svg.addEventListener("pointerdown", (e) => scrub(e.clientX));
-    svg.addEventListener("pointermove", (e) => { if (e.buttons || e.pointerType !== "mouse") scrub(e.clientX); });
-    svg.addEventListener("pointerleave", () => {
-      cursor.style.display = "none";
-      readout.textContent = t("elevationHint");
-    });
-  }
-
+  const marker = initTrackMap(panel.querySelector(".route-map"), legs);
+  wireProfileScrub(panel, points, marker);
 }
 
 // Shared by the route panel and the training list: add, move between sections,
 // and unlink. Called after whichever section has just been rendered.
 function wireActivityControls(root, adventure) {
+  // A training row draws its map the first time it's opened — building a
+  // Leaflet map per row up front would be wasteful, and hidden containers
+  // give Leaflet no dimensions to size against.
+  root.querySelectorAll("[data-expand]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const li = btn.closest("li");
+      const box = li.querySelector(".tr-track");
+      if (box.dataset.loaded) {
+        box.hidden = !box.hidden;
+        return;
+      }
+
+      const activity = (adventure.activities || []).find((a) => String(a.id) === li.dataset.activityId);
+      if (!activity) return;
+
+      const { legs, points } = routeSeries([activity]);
+      box.innerHTML = trackViewHtml(points);
+      box.hidden = false;
+      box.dataset.loaded = "1";
+      wireProfileScrub(box, points, initTrackMap(box.querySelector(".route-map"), legs));
+    });
+  });
+
   root.querySelectorAll("[data-add-activity]").forEach((btn) => {
     btn.addEventListener("click", () => openActivityPicker(adventure.slug, btn.dataset.addActivity));
   });
@@ -1800,7 +1844,9 @@ function renderActiveSection(adventure, admin) {
   el.innerHTML = sectionHtml(section, admin, adventure);
   wireSection(adventure.slug, section, admin);
   if (section.type === "experience") wireRoutePanel(adventure, admin, "experience");
-  if (admin) wireActivityControls(el, adventure);
+  // Always wired: the Map toggle is public. The admin-only buttons simply
+  // aren't in the DOM for a visitor, so their handlers find nothing.
+  wireActivityControls(el, adventure);
   // Setting the departure date lives in the adventure form; make the empty
   // countdown a way in, rather than a dead end telling you to go find it.
   el.querySelector("[data-set-depart]")?.addEventListener("click", () => openAdventureModal(adventure));

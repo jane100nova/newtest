@@ -1674,3 +1674,23 @@ img {
   margin: 16px 0 0;
   box-shadow: none;
 }
+
+/* A training row's map, revealed on demand */
+.tr-track {
+  margin-top: 9px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.tr-track[hidden] {
+  display: none;
+}
+
+.tr-track .route-map {
+  height: 200px;
+}
+
+.tr-track .route-readout {
+  padding: 7px 11px 10px;
+}
