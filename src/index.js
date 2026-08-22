@@ -805,7 +805,7 @@ async function handleApi(request, env, url, ctx) {
 
     const { results } = await env.DB.prepare(
       `SELECT a.id, a.name, a.sport_type, a.start_date, a.distance_m, a.ascent_m,
-              a.adventure_id, v.title AS adventure_title
+              a.source, a.adventure_id, v.title AS adventure_title
        FROM activities a
        LEFT JOIN adventures v ON v.id = a.adventure_id
        ORDER BY a.start_date DESC LIMIT 50`
@@ -829,10 +829,62 @@ async function handleApi(request, env, url, ctx) {
     return json({ ok: true });
   }
 
-  // DELETE /api/activities/:id  (admin) — detach, keeping the activity itself
+  // POST /api/activities/import  (admin) — a GPX/TCX file, already parsed and
+  // downsampled by the browser. Cloudflare caps CPU per request, and chewing
+  // through tens of thousands of track points server-side would blow it.
+  if (method === "POST" && parts.length === 2 && parts[0] === "activities" && parts[1] === "import") {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
+    const body = await request.json().catch(() => ({}));
+    const track = Array.isArray(body.track) ? body.track.slice(0, 2000) : [];
+    if (!track.length) return json({ error: "no track points found in that file" }, { status: 400 });
+
+    const numOrNull = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+    const num = (v) => Number(v) || 0;
+
+    // Uploads count down from -1, keeping clear of Strava's positive ids.
+    const low = await env.DB.prepare("SELECT MIN(id) AS m FROM activities WHERE id < 0").first();
+    const id = Math.min(-1, (low?.m ?? 0) - 1);
+
+    await env.DB.prepare(
+      `INSERT INTO activities (id, source, name, sport_type, start_date, moving_time,
+         elapsed_time, distance_m, ascent_m, elev_high, elev_low, average_speed,
+         max_speed, average_heartrate, max_heartrate, track, synced_at)
+       VALUES (?, 'upload', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+    )
+      .bind(
+        id,
+        String(body.name || "Untitled activity").slice(0, 120),
+        String(body.sport_type || "").slice(0, 40),
+        String(body.start_date || "").slice(0, 40),
+        Math.round(num(body.moving_time)),
+        Math.round(num(body.elapsed_time)),
+        num(body.distance_m),
+        num(body.ascent_m),
+        numOrNull(body.elev_high),
+        numOrNull(body.elev_low),
+        numOrNull(body.average_speed),
+        numOrNull(body.max_speed),
+        numOrNull(body.average_heartrate),
+        numOrNull(body.max_heartrate),
+        JSON.stringify(track)
+      )
+      .run();
+
+    return json({ id, points: track.length }, { status: 201 });
+  }
+
+  // DELETE /api/activities/:id  (admin) — detaches by default; ?purge=1 also
+  // removes the activity, for an upload that shouldn't have happened.
   if (method === "DELETE" && parts.length === 2 && parts[0] === "activities") {
     const denied = requireAdmin(request, env);
     if (denied) return denied;
+
+    if (url.searchParams.get("purge") === "1") {
+      await env.DB.prepare("DELETE FROM activities WHERE id = ?").bind(parts[1]).run();
+      return json({ ok: true, purged: true });
+    }
     await env.DB.prepare("UPDATE activities SET adventure_id = NULL WHERE id = ?").bind(parts[1]).run();
     return json({ ok: true });
   }

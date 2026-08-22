@@ -108,6 +108,9 @@ const STRINGS = {
     stravaSync: "Sync recent", stravaConnect: "Connect", stravaDisconnect: "Disconnect",
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync enabled",
     siteText: "Site text", filterText: "Filter\u2026", stravaMore: "tap again for older",
+    uploadTrack: "Upload GPX / TCX", readingFile: "Reading file\u2026",
+    badTrackFile: "Couldn't read that file \u2014 GPX or TCX only.",
+    deleteActivityConfirm: "Delete this uploaded activity?",
     siteTextHint: "Rewrite any wording that reads badly. Empty a field to restore the built-in text.",
     stravaNotConfigured: "Strava keys aren't set on the Worker yet.",
     stravaConnectedToast: "Strava connected", stravaFailedToast: "Strava connection failed",
@@ -176,6 +179,9 @@ const STRINGS = {
     stravaSync: "Sinhronizēt", stravaConnect: "Savienot", stravaDisconnect: "Atvienot",
     stravaAutoSync: "Auto-sinhronizācija", autoSyncOn: "Auto-sinhronizācija ieslēgta",
     siteText: "Vietnes teksti", filterText: "Filtrēt\u2026", stravaMore: "spied vēlreiz vecākiem",
+    uploadTrack: "Augšupielādēt GPX / TCX", readingFile: "Nolasa failu\u2026",
+    badTrackFile: "Neizdevās nolasīt failu \u2014 tikai GPX vai TCX.",
+    deleteActivityConfirm: "Dzēst šo augšupielādēto aktivitāti?",
     siteTextHint: "Pārraksti jebkuru frāzi. Iztukšo lauku, lai atjaunotu sākotnējo tekstu.",
     stravaNotConfigured: "Strava atslēgas vēl nav iestatītas.",
     stravaConnectedToast: "Strava savienota", stravaFailedToast: "Neizdevās savienot Strava",
@@ -244,6 +250,9 @@ const STRINGS = {
     stravaSync: "Synchroniseren", stravaConnect: "Verbinden", stravaDisconnect: "Verbreken",
     stravaAutoSync: "Auto-sync", autoSyncOn: "Auto-sync ingeschakeld",
     siteText: "Sitetekst", filterText: "Filteren\u2026", stravaMore: "tik nogmaals voor oudere",
+    uploadTrack: "GPX / TCX uploaden", readingFile: "Bestand lezen\u2026",
+    badTrackFile: "Kon dat bestand niet lezen \u2014 alleen GPX of TCX.",
+    deleteActivityConfirm: "Deze geüploade activiteit verwijderen?",
     siteTextHint: "Herschrijf teksten die niet lekker lopen. Leeg een veld om de standaardtekst te herstellen.",
     stravaNotConfigured: "Strava-sleutels staan nog niet op de Worker.",
     stravaConnectedToast: "Strava verbonden", stravaFailedToast: "Verbinden met Strava mislukt",
@@ -1283,6 +1292,185 @@ function wireRoutePanel(adventure, admin) {
   });
 }
 
+// ---------- GPX / TCX import ----------
+// Parsing happens here rather than in the Worker: Cloudflare caps CPU per
+// request, and a long hike is tens of thousands of track points.
+
+const TRACK_MAX_POINTS = 1200;
+
+function haversine(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+async function parseTrackFile(file) {
+  const doc = new DOMParser().parseFromString(await file.text(), "application/xml");
+  if (doc.getElementsByTagName("parsererror").length) throw new Error(t("badTrackFile"));
+
+  // Garmin's files are full of namespace prefixes (gpxtpx:hr, ns3:Speed), so
+  // every lookup ignores the namespace and matches on local name.
+  const tags = (el, name) => el.getElementsByTagNameNS("*", name);
+  const one = (el, name) => tags(el, name)[0];
+  const numOf = (el, name) => {
+    const node = one(el, name);
+    const v = node ? parseFloat(node.textContent) : NaN;
+    return Number.isFinite(v) ? v : null;
+  };
+
+  const raw = [];
+  const tcxPoints = tags(doc, "Trackpoint");
+  const gpxPoints = tags(doc, "trkpt");
+
+  if (tcxPoints.length) {
+    for (const p of tcxPoints) {
+      const pos = one(p, "Position");
+      if (!pos) continue; // indoor trackpoints carry no position
+      const lat = numOf(pos, "LatitudeDegrees");
+      const lng = numOf(pos, "LongitudeDegrees");
+      if (lat == null || lng == null) continue;
+      const hrEl = one(p, "HeartRateBpm");
+      raw.push({
+        lat, lng,
+        ele: numOf(p, "AltitudeMeters"),
+        t: Date.parse(one(p, "Time")?.textContent || ""),
+        hr: hrEl ? numOf(hrEl, "Value") : null,
+        d: numOf(p, "DistanceMeters"),
+      });
+    }
+  } else {
+    for (const p of gpxPoints) {
+      const lat = parseFloat(p.getAttribute("lat"));
+      const lng = parseFloat(p.getAttribute("lon"));
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      raw.push({
+        lat, lng,
+        ele: numOf(p, "ele"),
+        t: Date.parse(one(p, "time")?.textContent || ""),
+        hr: numOf(p, "hr"), // gpxtpx:hr, inside <extensions>
+        d: null,
+      });
+    }
+  }
+
+  if (raw.length < 2) throw new Error(t("badTrackFile"));
+
+  // TCX carries cumulative distance; GPX doesn't, so measure it.
+  const hasDistance = raw.some((p) => p.d != null);
+  let cum = 0;
+  for (let i = 0; i < raw.length; i++) {
+    if (hasDistance && raw[i].d != null) cum = raw[i].d;
+    else if (i > 0) cum += haversine(raw[i - 1], raw[i]);
+    raw[i].dist = cum;
+  }
+
+  const t0 = Number.isFinite(raw[0].t) ? raw[0].t : null;
+  for (const p of raw) {
+    p.sec = t0 != null && Number.isFinite(p.t) ? Math.round((p.t - t0) / 1000) : null;
+  }
+
+  let moving = 0;
+  let maxSpeed = 0;
+  for (let i = 1; i < raw.length; i++) {
+    const dt = (raw[i].sec ?? 0) - (raw[i - 1].sec ?? 0);
+    const dd = raw[i].dist - raw[i - 1].dist;
+    // A gap longer than two minutes is a paused watch, not slow walking.
+    if (dt > 0 && dt < 120) {
+      const v = dd / dt;
+      raw[i].v = v;
+      if (v >= 0.3) moving += dt;
+      if (v < 20) maxSpeed = Math.max(maxSpeed, v); // guard against GPS spikes
+    } else {
+      raw[i].v = null;
+    }
+  }
+  raw[0].v = raw[1]?.v ?? null;
+
+  // Ascent with hysteresis: barometric noise would otherwise add hundreds of
+  // phantom metres over a long day.
+  let ascent = 0;
+  let ref = null;
+  for (const p of raw) {
+    if (p.ele == null) continue;
+    if (ref == null) ref = p.ele;
+    else if (p.ele > ref + 3) { ascent += p.ele - ref; ref = p.ele; }
+    else if (p.ele < ref) ref = p.ele;
+  }
+
+  const eles = raw.map((p) => p.ele).filter((e) => e != null);
+  const hrs = raw.map((p) => p.hr).filter((h) => h != null);
+  const distance = raw[raw.length - 1].dist;
+  const elapsed = raw[raw.length - 1].sec ?? 0;
+
+  const point = (p) => [
+    +p.lat.toFixed(5),
+    +p.lng.toFixed(5),
+    p.ele != null ? +p.ele.toFixed(1) : null,
+    p.sec,
+    p.hr != null ? Math.round(p.hr) : null,
+    p.v != null ? +p.v.toFixed(2) : null,
+    Math.round(p.dist),
+  ];
+
+  const step = Math.max(1, Math.ceil(raw.length / TRACK_MAX_POINTS));
+  const track = [];
+  for (let i = 0; i < raw.length; i += step) track.push(point(raw[i]));
+  if ((raw.length - 1) % step !== 0) track.push(point(raw[raw.length - 1]));
+
+  const trk = one(doc, "trk");
+  const activity = one(doc, "Activity");
+  const sport = (activity?.getAttribute("Sport") || one(doc, "type")?.textContent || "").trim().slice(0, 40);
+
+  // GPX carries the activity's name; TCX doesn't, and Garmin names those files
+  // "activity_12345678.tcx" — so fall back to the sport and date instead.
+  const named = trk && one(trk, "name")?.textContent?.trim();
+  const dated = sport && t0 != null ? `${sport} · ${new Date(t0).toISOString().slice(0, 10)}` : "";
+  const name = (named || dated || file.name.replace(/\.[^.]+$/, "")).trim().slice(0, 120);
+
+  return {
+    name,
+    sport_type: sport,
+    start_date: t0 != null ? new Date(t0).toISOString() : "",
+    moving_time: moving || elapsed,
+    elapsed_time: elapsed,
+    distance_m: distance,
+    ascent_m: ascent,
+    elev_high: eles.length ? Math.max(...eles) : null,
+    elev_low: eles.length ? Math.min(...eles) : null,
+    average_speed: moving ? distance / moving : null,
+    max_speed: maxSpeed || null,
+    average_heartrate: hrs.length ? hrs.reduce((a, b) => a + b, 0) / hrs.length : null,
+    max_heartrate: hrs.length ? Math.max(...hrs) : null,
+    track,
+  };
+}
+
+// Picks a file, parses it here, stores it, and attaches it to the adventure.
+function uploadTrackFile(slug, onDone) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,text/xml,application/xml";
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    toast(t("readingFile"));
+    try {
+      const parsed = await parseTrackFile(file);
+      const { id } = await api("activities/import", { method: "POST", body: JSON.stringify(parsed) });
+      await api(`adventures/${slug}/activities`, { method: "POST", body: JSON.stringify({ activity_id: id }) });
+      toast(`${t("savedToast")} · ${fmtKm(parsed.distance_m)}`);
+      onDone?.();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  input.click();
+}
+
 async function openActivityPicker(slug) {
   let activities = [];
   try {
@@ -1297,11 +1485,12 @@ async function openActivityPicker(slug) {
   overlay.innerHTML = `
     <div class="modal">
       <h2>${t("pickActivity")}</h2>
+      <button type="button" class="btn btn-outline btn-block" id="upload-track">${icon("plus", 15)}<span>${t("uploadTrack")}</span></button>
       ${activities.length ? `<ul class="activity-picker">${activities
         .map((a) => `<li><button type="button" data-pick="${a.id}">
             <span class="ap-name">${escapeHtml(a.name || "")}</span>
             <span class="ap-meta">${escapeHtml(String(a.start_date).slice(0, 10))}<span class="sep">·</span>${fmtKm(a.distance_m)}<span class="sep">·</span>${fmtM(a.ascent_m)}${a.adventure_title ? `<span class="sep">·</span>${escapeHtml(a.adventure_title)}` : ""}</span>
-          </button></li>`)
+          </button>${a.source === "upload" ? `<button type="button" class="edit-btn danger ap-del" data-drop="${a.id}" aria-label="${t("delete")}">${icon("trash", 13)}</button>` : ""}</li>`)
         .join("")}</ul>` : `<p class="route-empty">${t("noActivities")}</p>`}
       <div class="modal-actions">
         <button type="button" class="btn btn-outline btn-block" id="cancel-modal">${t("cancel")}</button>
@@ -1311,6 +1500,27 @@ async function openActivityPicker(slug) {
   document.body.appendChild(overlay);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
   overlay.querySelector("#cancel-modal").addEventListener("click", () => overlay.remove());
+
+  overlay.querySelector("#upload-track").addEventListener("click", () => {
+    uploadTrackFile(slug, () => {
+      overlay.remove();
+      renderAdventure(slug);
+    });
+  });
+
+  overlay.querySelectorAll("[data-drop]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm(t("deleteActivityConfirm"))) return;
+      try {
+        await api(`activities/${btn.dataset.drop}?purge=1`, { method: "DELETE" });
+        overlay.remove();
+        toast(t("deleted"));
+        renderAdventure(slug);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  });
 
   overlay.querySelectorAll("[data-pick]").forEach((btn) => {
     btn.addEventListener("click", async () => {

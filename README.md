@@ -75,6 +75,7 @@ You can do this either in the **dashboard** or with **wrangler CLI**
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0008_strava.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0009_site_text.sql
    npx wrangler d1 execute wayfarer --remote --file=./migrations/0010_caption_translations.sql
+   npx wrangler d1 execute wayfarer --remote --file=./migrations/0011_activity_source.sql
    ```
    They can also be pasted into the D1 **Console** tab in the dashboard.
 
@@ -121,10 +122,38 @@ a past trip doesn't show an empty Preparation or Plan. Admin still sees
 every tab (marked with a dashed outline) so content can be added to one
 the public can't see yet.
 
-## Strava setup (for route maps)
+## Getting tracks in
 
-Garmin Connect syncs activities to Strava, and Strava pushes them here —
-so the watch never talks to this site directly. Set it up once:
+A route map needs a GPS track. There are two ways to supply one, and they
+land in the same `activities` table, so the Route panel treats them
+identically.
+
+### Uploading a file (no accounts, works today)
+
+1. In **Garmin Connect**, open an activity → the ⚙ menu → **Export to GPX**
+   (or **Export to TCX**).
+2. On the adventure, in admin mode: **Link activity** → **Upload GPX / TCX**.
+
+The file is parsed **in your browser**, not on the server — Cloudflare caps
+CPU per request and a long hike runs to tens of thousands of track points.
+The browser works out distance, ascent, moving time, speeds and heart-rate
+range, downsamples the track to 1200 points, and sends that.
+
+Prefer **GPX**: it carries the activity's name, which TCX doesn't (a TCX
+upload is named from its sport and date instead). Either format carries
+heart rate and elevation. TCX states cumulative distance directly; for GPX
+it's measured from the coordinates — the two agree to within a metre or so.
+
+Uploaded activities can be deleted from the picker; Strava-synced ones can
+only be unlinked, since Strava remains their source of truth.
+
+### Strava sync (automatic, needs a paid Strava plan)
+
+Garmin Connect syncs activities to Strava, and Strava pushes them here — so
+the watch never talks to this site directly. **Strava now requires a paid
+subscription to issue API credentials**, so this path costs money; the
+upload route above does not. The integration is built and dormant until the
+keys below are set.
 
 1. **Turn on Garmin → Strava sync.** In Garmin Connect, connect your
    Strava account so completed activities upload automatically.

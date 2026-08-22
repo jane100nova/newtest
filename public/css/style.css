@@ -1557,3 +1557,25 @@ img {
 .text-row.overridden textarea {
   border-color: var(--color-accent);
 }
+
+/* Upload row + per-row delete in the activity picker */
+#upload-track {
+  margin-bottom: 12px;
+}
+
+.activity-picker li {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.activity-picker li > button[data-pick] {
+  flex: 1;
+  min-width: 0;
+}
+
+.ap-del {
+  flex: none;
+  align-self: center;
+  padding: 6px 9px;
+}
